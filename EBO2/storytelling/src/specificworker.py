@@ -181,7 +181,7 @@ class SpecificWorker(GenericWorker):
         self.ui2.aficionE.clear()
         self.ui2.edadE.clear()
         self.ui2.famiE.clear()
-        self.ui2.startGame.setEnabled(False)
+        # self.ui2.startGame.setEnabled(False)
 
         print("Iniciando juego con los datos seleccionados")
         self.cerrar_ui(2)
