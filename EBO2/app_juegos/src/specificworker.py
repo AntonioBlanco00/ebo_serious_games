@@ -98,7 +98,7 @@ class SpecificWorker(GenericWorker):
     def v_principal (self):
         #Cargar interfaz
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("src/mainUI.ui")
+        file = QtCore.QFile("../../igs/app_juegos.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
