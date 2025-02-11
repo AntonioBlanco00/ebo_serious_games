@@ -115,7 +115,7 @@ class SpecificWorker(GenericWorker):
     def game_selector_ui (self):
         #Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/game_selector.ui")
+        file = QtCore.QFile("../../igs/seleccion_menu.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -149,7 +149,7 @@ class SpecificWorker(GenericWorker):
     def conversational_ui (self):
         #Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/conversacional.ui")
+        file = QtCore.QFile("../../igs/conversacional_menu.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -216,7 +216,7 @@ class SpecificWorker(GenericWorker):
     def storytelling_ui (self):
         #Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/storytelling.ui")
+        file = QtCore.QFile("../../igs/storytelling_menu.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -321,7 +321,7 @@ class SpecificWorker(GenericWorker):
     def respuesta_ui (self):
         #Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/respuesta.ui")
+        file = QtCore.QFile("../../igs/respuesta_gpt.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
