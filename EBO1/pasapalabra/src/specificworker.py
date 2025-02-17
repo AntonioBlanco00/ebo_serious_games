@@ -541,7 +541,7 @@ class SpecificWorker(GenericWorker):
     def load_ui(self):
         # Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/pasapalabraUI.ui")
+        file = QtCore.QFile("../../igs/pasapalabra_respuesta.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -597,7 +597,7 @@ class SpecificWorker(GenericWorker):
 
         #Cargar interfaz
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/therapistUI.ui")
+        file = QtCore.QFile("../../igs/pasapalabra_menu.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -668,7 +668,7 @@ class SpecificWorker(GenericWorker):
     def load_check(self):
         # Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/botonUI.ui")
+        file = QtCore.QFile("../../igs/botonUI.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -703,7 +703,7 @@ class SpecificWorker(GenericWorker):
     def comenzar_checked(self):
         # Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/comenzarUI.ui")
+        file = QtCore.QFile("../../igs/comenzarUI.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
