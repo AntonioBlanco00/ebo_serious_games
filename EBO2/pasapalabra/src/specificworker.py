@@ -41,12 +41,10 @@ import random
 sys.path.append('/opt/robocomp/lib')
 console = Console(highlight=False)
 
-
 # If RoboComp was compiled with Python bindings you can use InnerModel in Python
 # import librobocomp_qmat
 # import librobocomp_osgviewer
 # import librobocomp_innermodel
-
 
 class SpecificWorker(GenericWorker):
     def __init__(self, proxy_map, startup_check=False):
@@ -61,10 +59,10 @@ class SpecificWorker(GenericWorker):
 
         pygame.init()
 
+        ########## INTRODUCCIÓN DE SONIDOS ##########
         self.sounds = {
             "click": pygame.mixer.Sound('src/click.wav'),
         }
-
 
         self.datos = []
         self.letras = []
@@ -82,9 +80,11 @@ class SpecificWorker(GenericWorker):
         self.elapsed_time = None
         self.rosco = ""
         self.bd = ""
+
+        ########## DEFINICIÓN DEL DATAFRAME QUE ALMACENA LOS DATOS ##########
         self.df = pd.DataFrame(columns=["Nombre", "Rosco", "Aciertos", "Fallos", "Pasadas", "Fecha", "Hora", "Tiempo transcurrido (min)",
                                         "Tiempo transcurrido (seg)", "Tiempo de respuesta medio (seg)"])
-        self.resp =""
+        self.resp = ""
         self.running = False
         self.boton = False
         self.check = ""
@@ -96,8 +96,6 @@ class SpecificWorker(GenericWorker):
         self.responses_times = []
         self.media = 0
 
-
-
         QApplication.processEvents()
 
         self.ui = self.load_ui()
@@ -106,7 +104,6 @@ class SpecificWorker(GenericWorker):
         self.ui4 = self.comenzar_checked()
 
         ########## BATERÍA DE RESPUESTAS Y FUNCIÓN PARA ALEATORIZAR ##########
-
         self.bateria_aciertos = [
             "¡Increíble, acertaste!",
             "¡Qué bien, has acertado!",
@@ -140,46 +137,11 @@ class SpecificWorker(GenericWorker):
             "¡Pasapalabra, ahora es el turno de la siguiente!"
         ]
 
-    # Función para elegir respuesta al azar
     def elegir_respuesta(self, bateria):
         return random.choice(bateria)
 
-        ######################################################################
-
-
-        # self.listener = keyboard.Listener(on_press=self.on_pressed)
-        # self.listener.start()
-
-        # Simula un proceso que se está ejecutando
-
-
     def __del__(self):
         """Destructor"""
-
-    # def on_press(self, key):
-    #     if key == keyboard.Key.esc:  # Si se presiona Esc
-    #         print("Tecla ESC presionada, deteniendo el juego.")
-    #         self.running = False
-    #         if self.ui.show():
-    #             self.ui.close()
-    #         elif self.ui2.show():
-    #             self.ui2.close()
-    #         elif self.ui3.show():
-    #             self.ui3.close()
-    #         elif self.ui4.show():
-    #             self.ui4.close()
-
-    #         return False  # Detiene el listener
-
-    # def start_listener(self):
-    #     with keyboard.Listener(on_press=self.on_press) as listener:
-    #         listener.join()
-
-
-    # # Inicia el listener en un hilo separado # YO ME CARGABA TO ESTO
-    # def start_listener_thread(self):
-    #     listener_thread = threading.Thread(target=self.start_listener, daemon=True)
-    #     listener_thread.start()
 
     def setParams(self, params):
         # try:
@@ -189,16 +151,17 @@ class SpecificWorker(GenericWorker):
         #	print("Error reading config params")
         return True
 
+    ########## FUNCIÓN PARA ENCENDER LAS LUCES LEDS ##########
     def set_all_LEDS_colors(self, red=0, green=0, blue=0, white=0):
         pixel_array = {i: ifaces.RoboCompLEDArray.Pixel(red=red, green=green, blue=blue, white=white) for i in
                        range(self.NUM_LEDS)}
         self.ledarray_proxy.setLEDArray(pixel_array)
 
+    ########## OBTIENE LOS ROSCOS ##########
     def archivo(self, archivo_json):
         """Cargar los datos desde el archivo JSON"""
         # Donde json es una string con el nombre del json, ruta a futuro.
         self.bd = archivo_json
-
         with open(self.bd, 'r', encoding='utf-8') as json_file:
             self.datos = json.load(json_file)["preguntas"] # Acceder a la clave 'preguntas'
 
@@ -207,22 +170,13 @@ class SpecificWorker(GenericWorker):
             self.letras.append(pregunta['letra'])  # Guardar las letras
             self.preguntas.append(pregunta['definicion'])  # Guardar las definiciones
             self.respuestas.append(pregunta['respuesta'])  # Guardar las respuestas
-        #
-        # print(f'Las letras son: {self.letras}')
-        # print(f'Las preguntas son: {self.preguntas}')
-        # print(f'Las respuestas son: {self.respuestas}'
 
-        # print(self.datos)
-
+    ########## PROCESO DEL JUEGO ##########
     def juego(self):
-        # self.start_listener_thread()
-        # self.running = True
         json_elegido = "roscos/" + self.rosco  + ".json"
         self.archivo(json_elegido)
         print("Comienzo de juego")
-
         self.start_time = time.time()
-
         letras_restantes = self.letras.copy()
 
         while letras_restantes or self.letras_pasadas:
@@ -231,15 +185,9 @@ class SpecificWorker(GenericWorker):
                 for letra in letras_restantes[:]:  # Iteramos sobre una copia de la lista
                     if not self.running:
                         break
-                    # Tras mostrar, no puede salir de esta parte del código sin respuesta.
-                    # While self.resp = "" que no haga nada, cualdo pulse botón que se cierre la interfaz y se cambie self.resp.
-                    # Por lo tanto al pulsar botón, el juego sigue
 
                     self.resp = ""
-
-
                     indice = self.letras.index(letra)
-
                     if self.respuestas[indice].startswith(letra):
                         self.letra_actual = f"Comienza con la letra:{letra}"
                         self.speech_proxy.say(f"Comienza con la letra:{letra}", False)
@@ -249,22 +197,14 @@ class SpecificWorker(GenericWorker):
                         self.speech_proxy.say(f"Contiene la letra:{letra}", False)
                         print(f'Contiene la letra: {letra}')
 
-
                     self.speech_proxy.say(f"{self.preguntas[indice]}", False)
                     print(self.preguntas[indice])
-
                     respuesta_correcta = self.respuestas[indice]
-
                     self.pregunta_actual = self.preguntas[indice]
-
                     self.terminaHablar()
-
                     self.start_question_time = time.time()
-
-                    # self.resp = input("Respuesta (o escribe 'pasapalabra'ps para saltar a la siguiente): ")
                     self.ui.respuesta.clear()
                     self.ui.respuesta.insertPlainText(respuesta_correcta)
-
                     self.ui.show()
                     while self.resp == "":
                         QApplication.processEvents()
@@ -281,7 +221,6 @@ class SpecificWorker(GenericWorker):
                         self.pasadas += 1
                         self.emotionalmotor_proxy.expressJoy()
                         letras_restantes.remove(letra)
-
                     elif self.resp == "si":
                         self.speech_proxy.say(self.elegir_respuesta(self.bateria_aciertos), False)
                         print("¡Respuesta correcta!")
@@ -319,9 +258,7 @@ class SpecificWorker(GenericWorker):
                         break
 
                     self.resp=""
-
                     indice = self.letras.index(letra)
-
                     if self.respuestas[indice].startswith(letra):
                         self.speech_proxy.say(f"Comienza con la letra:{letra}", False)
                         print(f'Con la letra: {letra}')
@@ -331,22 +268,15 @@ class SpecificWorker(GenericWorker):
 
                     pregunta = self.preguntas[indice]
                     respuesta_correcta = self.respuestas[indice]
-
                     self.speech_proxy.say(f"{pregunta}", False)
                     print(f'Pregunta: {pregunta}')
-
                     self.terminaHablar()
-
-                    # resp = input("Respuesta: ").lower()
-
                     self.ui.respuesta.clear()
                     self.ui.respuesta.insertPlainText(respuesta_correcta)
-
                     self.ui.show()
                     self.start_question_time = time.time()
                     while self.resp == "":
                         QApplication.processEvents()
-
 
                     if self.resp == "pasapalabra":
                         self.speech_proxy.say(f"Has pasado esta letra nuevamente", False)
@@ -356,9 +286,7 @@ class SpecificWorker(GenericWorker):
                         sleep(2)
                         self.set_all_LEDS_colors(0, 0, 0)
                         sleep(1)
-                        # self.letras_pasadas.append(letra)
                         self.letras_pasadas.remove(letra)
-                        # self.pasadas += 1
                         self.emotionalmotor_proxy.expressJoy()
                     elif self.resp == "si":
                         self.speech_proxy.say(self.elegir_respuesta(self.bateria_aciertos), False)
@@ -371,7 +299,6 @@ class SpecificWorker(GenericWorker):
                         self.aciertos += 1
                         self.pasadas -= 1
                         self.emotionalmotor_proxy.expressJoy()
-
                         self.letras_pasadas.remove(letra)  # Eliminar la letra de letras_pasadas si es incorrecta
                     else:
                         self.speech_proxy.say(f"{self.elegir_respuesta(self.bateria_fallos)} La respuesta correcta era {respuesta_correcta}", False)
@@ -391,7 +318,6 @@ class SpecificWorker(GenericWorker):
                     self.response_time = self.end_question_time - self.start_question_time
                     self.responses_times.append(self.response_time)
 
-
         self.end_time = time.time()
         self.elapsed_time = self.end_time - self.start_time  # Tiempo en segundos
         self.media = sum(self.responses_times) / len(self.responses_times)
@@ -401,12 +327,9 @@ class SpecificWorker(GenericWorker):
         self.agregar_resultados(self.nombre, self.rosco, self.aciertos, self.fallos, self.pasadas, self.fecha,
                                 self.hora, (self.elapsed_time//60), (self.elapsed_time%60), self.media)
         self.guardar_resultados()
-
         # REINICIAR TODAS LAS VARIABLES
         self.reiniciar_variables()
-
         self.gestorsg_proxy.LanzarApp()
-
 
     def reiniciar_variables(self):
         self.datos = []
@@ -441,40 +364,27 @@ class SpecificWorker(GenericWorker):
                                         "Tiempo transcurrido (seg)", "Tiempo de respuesta medio (seg)"])
         print("Variable self.df reiniciada para la próxima partida.")
 
+    ########## INTRODUCCIÓN AL JUEGO ##########
     def introduccion (self):
-        # self.running = True
         while self.running:
             if not self.running:
                 break
-            QApplication.processEvents()
-            # Introducirlo con interfaz gráfica terapeuta
 
-            # self.nombre = input("Inserta el nombre del usuario: ")
-            # self.rosco = input(("Inserta la dificultad (facil, media o dificil):"))
+            QApplication.processEvents()
+
             self.fecha = datetime.now().strftime("%d-%m-%Y")
             self.hora = datetime.now().strftime("%H:%M:%S")
-
             self.emotionalmotor_proxy.expressJoy()
-
-
             self.speech_proxy.say(f"Hola {self.nombre}, vamos a jugar a Pasapalabra.", False)
-
             print(f"Hola {self.nombre}, vamos a jugar a Pasapalabra.")
-
             self.speech_proxy.say( "Pasapalabra es un juego donde tienes que responder correctamente a preguntas cuyas respuestas empiezan o "
                                    "contienen cada letra del abecedario ", False)
-
             print("Pasapalabra es un juego donde tienes que responder correctamente a preguntas cuyas respuestas empiezan o "
                                    "contienen cada letra del abecedario ")
-
             self.speech_proxy.say("¿Quieres que te explique el juego?", False)
-
             print("¿Quieres que te explique el juego?")
-
             self.terminaHablar()
-
             # Introducir interfaz
-
             self.check = ""
             self.ui3.show()
             self.ui3.exec_()
@@ -483,31 +393,21 @@ class SpecificWorker(GenericWorker):
                 self.speech_proxy.say(
                     "Cada letra tiene una pregunta asociada. Por ejemplo: Con la A: Accesorio de joyería que se pone en los dedos. "
                     "La respuesta sería Anillos", False)
-
-                print(
-                    "Cada letra tiene una pregunta asociada. Por ejemplo: Con la A: Accesorio de joyería que se pone en los dedos. "
+                print( "Cada letra tiene una pregunta asociada. Por ejemplo: Con la A: Accesorio de joyería que se pone en los dedos. "
                     "La respuesta sería Anillos")
-
                 self.speech_proxy.say("Si no sabes la respuesta, puedes decir pasapalabra para saltar esa pregunta y volver a ella más tarde", False)
                 print("Si no sabes la respuesta, puedes decir pasapalabra para saltar esa pregunta y volver a ella más tarde")
-
                 self.speech_proxy.say("El juego termina cuando hayas contestado las preguntas asociadas a todas las letras", False)
                 print("El juego termina cuando hayas contestado las preguntas asociadas a todas las letras")
-
-
             elif self.check == "no":
                 self.speech_proxy.say("Mantén la calma, escucha bien las preguntas, y si dudas, ¡pasapalabra!", False)
                 print("Mantén la calma, escucha bien las preguntas, y si dudas, ¡pasapalabra!")
-
                 self.speech_proxy.say("¡Comencemos con el juego!", False)
                 print("Comencemos con el juego")
 
             self.terminaHablar()
-
             self.ui4.show()
             self.ui4.exec_()
-
-            # input("Presiona enter para comenzar...")
             self.juego()
 
     def terminaHablar(self):
@@ -515,6 +415,7 @@ class SpecificWorker(GenericWorker):
         while self.speech_proxy.isBusy():
             pass
 
+    ########## FUNCIÓN QUE AGREGA LOS RESULTADOS AL DATAFRAME ##########
     def agregar_resultados(self, nombre,dificultad, aciertos, fallos, pasadas, fecha, hora,
                            tiempo_transcurrido_min, tiempo_transcurrido_seg, tiempo_respuesta_medio):
         # Crea un diccionario con los datos nuevos
@@ -537,6 +438,7 @@ class SpecificWorker(GenericWorker):
         # Agrega la nueva fila al DataFrame existente
         self.df = pd.concat([self.df, nuevo_df], ignore_index=True)
 
+    ########## FUNCIÓN QUE GUARDA LOS RESULTADOS DEL JUEGO ##########
     def guardar_resultados(self):
         archivo = "resultados_pasapalabra.json"
 
@@ -574,7 +476,7 @@ class SpecificWorker(GenericWorker):
     def load_ui(self):
         # Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/pasapalabraUI.ui")
+        file = QtCore.QFile("../../igs/pasapalabra_respuesta.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -591,7 +493,6 @@ class SpecificWorker(GenericWorker):
             
         self.ui_numbers[ui] = 1  
         ui.installEventFilter(self) 
-
         return ui
 
     def correcta_clicked(self):
@@ -630,11 +531,10 @@ class SpecificWorker(GenericWorker):
 
         #Cargar interfaz
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/therapistUI.ui")
+        file = QtCore.QFile("../../igs/pasapalabra_menu.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
-
         self.configure_combobox(ui, "roscos")
         ui.confirmar_button.clicked.connect(self.therapist)
         
@@ -644,7 +544,6 @@ class SpecificWorker(GenericWorker):
             
         self.ui_numbers[ui] = 2  
         ui.installEventFilter(self) 
-
         return ui
 
     def therapist(self):
@@ -697,11 +596,10 @@ class SpecificWorker(GenericWorker):
 
     ##########################################################################################
 
-
     def load_check(self):
         # Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/botonUI.ui")
+        file = QtCore.QFile("../../igs/botonUI.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -716,7 +614,6 @@ class SpecificWorker(GenericWorker):
             
         self.ui_numbers[ui] = 3
         ui.installEventFilter(self) 
-        
         return ui
 
     def si_clicked(self):
@@ -736,7 +633,7 @@ class SpecificWorker(GenericWorker):
     def comenzar_checked(self):
         # Carga la interfaz desde el archivo .ui
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("igs/comenzarUI.ui")
+        file = QtCore.QFile("../../igs/comenzarUI.ui")
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
@@ -750,7 +647,6 @@ class SpecificWorker(GenericWorker):
             
         self.ui_numbers[ui] = 4  
         ui.installEventFilter(self) 
-
         return ui
 
     def comenzar (self):
@@ -763,7 +659,6 @@ class SpecificWorker(GenericWorker):
     
     def eventFilter(self, obj, event):
         """ Captura eventos de la UI """
-        
         # Obtener el número de UI asociado al objeto
         ui_number = self.ui_numbers.get(obj, None)
 
@@ -784,7 +679,6 @@ class SpecificWorker(GenericWorker):
                     print(f"Cierre de la ventana {ui_number} cancelado.")
                     event.ignore()  # Bloquear el cierre
                     return True  # **DETENER la propagación del evento para que no se cierre**
-
         return False  # Propaga otros eventos normalmente
     
     def cerrar_ui(self, numero):
@@ -798,9 +692,7 @@ class SpecificWorker(GenericWorker):
         else:
             print(f"Error: {ui_nombre} no existe en la instancia.")
 
-
     ####################################################################################################################################
-
 
     @QtCore.Slot()
     def compute(self):
@@ -831,7 +723,6 @@ class SpecificWorker(GenericWorker):
             QApplication.processEvents()
             sleep(1)
         print("Juego terminado o ventana cerrada")
-        # pass
 
     def centrar_ventana(self, ventana):
         # Obtener la geometría de la pantalla
@@ -846,7 +737,6 @@ class SpecificWorker(GenericWorker):
 
         # Mover la ventana a la posición calculada
         ventana.move(x, y)
-
     ######################
     # From the RoboCompCameraSimple you can call this methods:
     # self.camerasimple_proxy.getImage(...)
