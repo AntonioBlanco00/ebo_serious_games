@@ -114,8 +114,11 @@ class SpecificWorker(GenericWorker):
         ui.story_button.clicked.connect(self.story_clicked)
         ui.simon_button.clicked.connect(self.simon_clicked)
         ui.pasapalabra_button.clicked.connect(self.pasapalabra_clicked)
-        
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked)
         # Asegurar que el diccionario de UIs existe
+
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
             
@@ -153,8 +156,13 @@ class SpecificWorker(GenericWorker):
         self.juego_seleccionado = True
         self.pasapalabra_proxy.StartGame()
 
-    
-    ####################################################################################################################################
+    def ayuda_clicked(self):
+        if self.ui.ayuda.isVisible():  # Verifica si está visible
+            self.ui.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui.ayuda.show()
+
+        ####################################################################################################################################
     
     def eventFilter(self, obj, event):
         """ Captura eventos de la UI """

@@ -120,20 +120,30 @@ class SpecificWorker(GenericWorker):
         ui = loader.load(file)
         file.close()
 
+        # Asignar las imágenes a los QLabel después de cargar la UI
+        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+
         # Conectar botones a funciones
         ui.conversation_game.clicked.connect(self.conversation_clicked)
         ui.storytelling_game.clicked.connect(self.story_clicked)
-        
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked)
+
+
+
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
             
         self.ui_numbers[ui] = 1  
-        ui.installEventFilter(self) 
-
+        ui.installEventFilter(self)
 
         return ui
-
 
     def conversation_clicked(self):
         print("Conversación Seleccionada")
@@ -145,6 +155,12 @@ class SpecificWorker(GenericWorker):
         self.cerrar_ui(1)
         self.lanzar_ui3()
 
+    def ayuda_clicked(self):
+        if self.ui.ayuda.isVisible():  # Verifica si está visible
+            self.ui.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui.ayuda.show()
+
     #### UI 2 #### ################ ############################################### ################
     def conversational_ui (self):
         #Carga la interfaz desde el archivo .ui
@@ -154,12 +170,22 @@ class SpecificWorker(GenericWorker):
         ui = loader.load(file)
         file.close()
 
+        # Asignar las imágenes a los QLabel después de cargar la UI
+        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+
         # Conectar botones a funciones
         ui.startGame.clicked.connect(self.startGame_clicked_conv)
 
         # Añadir opciones al ComboBox
         opciones = ["Seleccionar Personalidad...", "EBO_simpatico", "EBO_neutro", "EBO_pasional"]
         ui.comboBox.addItems(opciones)
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked2)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -210,7 +236,11 @@ class SpecificWorker(GenericWorker):
         print(self.user_info)
         print("-------------------------------------------------------------------")
 
-
+    def ayuda_clicked2(self):
+        if self.ui2.ayuda.isVisible():  # Verifica si está visible
+            self.ui2.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui2.ayuda.show()
 
     #### UI 3 #### ################ ############################################### ################
     def storytelling_ui (self):
@@ -221,10 +251,20 @@ class SpecificWorker(GenericWorker):
         ui = loader.load(file)
         file.close()
 
+        # Asignar las imágenes a los QLabel después de cargar la UI
+        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+
         # Conectar botones a funciones
         ui.startGame.clicked.connect(self.startGame_clicked)
         self.configure_combobox(ui, "../juegos_story")
-        
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked3)
+
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
@@ -315,6 +355,11 @@ class SpecificWorker(GenericWorker):
 
         self.ui3.startGame.setEnabled(True)
 
+    def ayuda_clicked3(self):
+        if self.ui3.ayuda.isVisible():  # Verifica si está visible
+            self.ui3.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui3.ayuda.show()
 
 
     #### UI 4 #### ################ ############################################### ################
@@ -326,11 +371,21 @@ class SpecificWorker(GenericWorker):
         ui = loader.load(file)
         file.close()
 
+        # Asignar las imágenes a los QLabel después de cargar la UI
+        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+
         # Conectar botones a funciones
         ui.enviar.clicked.connect(self.enviar_clicked)
         ui.salir.clicked.connect(self.salir_clicked)
         
         ui.respuesta.installEventFilter(self)
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked4)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -372,6 +427,12 @@ class SpecificWorker(GenericWorker):
             self.gpt_proxy.continueChat("03827857295769204")
         else:
             pass
+
+    def ayuda_clicked4(self):
+        if self.ui4.ayuda.isVisible():  # Verifica si está visible
+            self.ui4.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui4.ayuda.show()
         
 
     ################ ############################################### ################

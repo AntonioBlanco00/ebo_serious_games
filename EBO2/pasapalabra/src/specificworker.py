@@ -481,11 +481,21 @@ class SpecificWorker(GenericWorker):
         ui = loader.load(file)
         file.close()
 
+        # Asignar las imágenes a los QLabel después de cargar la UI
+        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+
         # Conectar botones a funciones
         ui.correcta.clicked.connect(self.correcta_clicked)
         ui.incorrecta.clicked.connect(self.incorrecta_clicked)
         ui.pasapalabra.clicked.connect(self.pasapalabra_clicked)
         ui.repetir.clicked.connect(self.repetir_clicked)
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -523,6 +533,7 @@ class SpecificWorker(GenericWorker):
         else:
             self.speech_proxy.say(f"{self.letra_actual}, {self.pregunta_actual}", False)
 
+
     ##########################################################################################
 
     def therapist_ui (self):
@@ -535,8 +546,19 @@ class SpecificWorker(GenericWorker):
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
+
+        # Asignar las imágenes a los QLabel después de cargar la UI
+        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+
         self.configure_combobox(ui, "roscos")
         ui.confirmar_button.clicked.connect(self.therapist)
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked2)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -593,6 +615,20 @@ class SpecificWorker(GenericWorker):
                 print(f"Error al listar archivos: {e}")
         else:
             print("No se encontró el QComboBox")
+
+    def ayuda_clicked(self):
+        print("BOTON AYUDA PULSADO")
+        if self.ui.ayuda.isVisible():  # Verifica si está visible
+            self.ui.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui.ayuda.show()
+
+    def ayuda_clicked2(self):
+        print("BOTON AYUDA PULSADO")
+        if self.ui2.ayuda.isVisible():  # Verifica si está visible
+            self.ui2.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui2.ayuda.show()
 
     ##########################################################################################
 
@@ -715,9 +751,9 @@ class SpecificWorker(GenericWorker):
     # IMPLEMENTATION of StartGame method from Pasapalabra interface
     #
     def Pasapalabra_StartGame(self):
-        self.boton = False # Gitaneada para que vaya la x
+        self.boton = False
         while not self.boton:
-            self.boton = True # Gitaneada para que vaya la x
+            self.boton = True
             self.centrar_ventana(self.ui2)
             self.ui2.show()
             QApplication.processEvents()

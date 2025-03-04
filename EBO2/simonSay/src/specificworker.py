@@ -92,6 +92,10 @@ class SpecificWorker(GenericWorker):
         self.end_time = None
         self.elapsed_time = None
 
+        self.ui2.show()
+        time.sleep(0.0001)
+        self.cerrar_ui(2)
+
         self.rondas_complet = 0
         self.fecha = 0
         self.hora = 0
@@ -596,10 +600,22 @@ class SpecificWorker(GenericWorker):
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
+
+        # Asignar las imágenes a los QLabel después de cargar la UI
+        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+
         ui.facil.clicked.connect(self.facil_clicked)
         ui.medio.clicked.connect(self.medio_clicked)
         ui.dificil.clicked.connect(self.dificil_clicked)
         ui.confirmar_button.clicked.connect(self.therapist)
+
+        ui.ayuda.hide()
+        ui.ayuda_button.clicked.connect(self.ayuda_clicked)
+
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
@@ -662,6 +678,12 @@ class SpecificWorker(GenericWorker):
         self.introduccion()
         self.procesoJuego()
 
+    def ayuda_clicked(self):
+        if self.ui2.ayuda.isVisible():  # Verifica si está visible
+            self.ui2.ayuda.hide()  # Si está visible, ocultarlo
+        else:
+            self.ui2.ayuda.show()
+
     ####################################################################################################################################
     
     def load_check(self):
@@ -674,6 +696,7 @@ class SpecificWorker(GenericWorker):
         # Conectar botones a funciones
         ui.si.clicked.connect(self.si_clicked)
         ui.no.clicked.connect(self.no_clicked)
+
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
@@ -858,6 +881,7 @@ class SpecificWorker(GenericWorker):
         while not self.boton:
             self.boton = True
             self.centrar_ventana(self.ui2)
+            print("aaaaaaaaaaaaa")
             self.ui2.show()
             QApplication.processEvents()
             sleep(1)
