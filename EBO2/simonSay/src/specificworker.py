@@ -48,6 +48,7 @@ console = Console(highlight=False)
 
 
 class SpecificWorker(GenericWorker):
+    update_ui_signal = Signal()
     def __init__(self, proxy_map, startup_check=False):
         super(SpecificWorker, self).__init__(proxy_map)
         self.Period = 2000
@@ -92,9 +93,9 @@ class SpecificWorker(GenericWorker):
         self.end_time = None
         self.elapsed_time = None
 
-        self.ui2.show()
-        time.sleep(0.0001)
-        self.cerrar_ui(2)
+        # self.ui2.show()
+        # time.sleep(0.0001)
+        # self.cerrar_ui(2)
 
         self.rondas_complet = 0
         self.fecha = 0
@@ -171,6 +172,8 @@ class SpecificWorker(GenericWorker):
             "¡Fantástico, qué gran partida!",
             "¡Finalizado, te has lucido!"
         ]
+        
+        self.update_ui_signal.connect(self.on_update_ui)
 
     ########## FUNCIÓN PARA AGREGAR LOS DATOS RECOGIDOS AL DATAFRAME ##########
     def agregar_resultados(self, nombre, intentos, rondas, dificultad, fecha, hora, rondas_completadas, fallos, tiempo_transcurrido_min, tiempo_transcurrido_seg, tiempo_medio_respuesta):
@@ -194,6 +197,7 @@ class SpecificWorker(GenericWorker):
 
         # Agrega la nueva fila al DataFrame existente
         self.df = pd.concat([self.df, nuevo_df], ignore_index=True)
+    
 
 
     def __del__(self):
@@ -605,8 +609,8 @@ class SpecificWorker(GenericWorker):
         ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
         ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
 
-        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
-        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+        ui.label_3.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_3.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
 
         ui.facil.clicked.connect(self.facil_clicked)
         ui.medio.clicked.connect(self.medio_clicked)
@@ -877,19 +881,20 @@ class SpecificWorker(GenericWorker):
     #
     def JuegoSimonSay_StartGame(self):
         self.set_all_LEDS_colors(255,0,0,0)
-        self.boton = False
-        while not self.boton:
-            self.boton = True
-            self.centrar_ventana(self.ui2)
-            print("aaaaaaaaaaaaa")
-            self.ui2.show()
-            QApplication.processEvents()
-            sleep(1)
-
-        print("Juego terminado o ventana cerrada")
+        self.update_ui_signal.emit()
         # pass
 
+    @Slot()
+    def on_update_ui(self):
+        # Este código se ejecutará en el hilo principal
+        if not self.ui2:
+            print("Error: la interfaz de usuario no se ha cargado correctamente.")
+            return
 
+        self.centrar_ventana(self.ui2)
+        self.ui2.raise_()
+        self.ui2.show()
+        QApplication.processEvents()
     # ===================================================================
     # ===================================================================
 

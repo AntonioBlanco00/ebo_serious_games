@@ -482,11 +482,11 @@ class SpecificWorker(GenericWorker):
         file.close()
 
         # Asignar las imágenes a los QLabel después de cargar la UI
-        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
-        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+        ui.label_2.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
+        ui.label_2.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
 
-        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
-        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+        ui.label_3.setPixmap(QPixmap("../../igs/logos/robolab.png"))
+        ui.label_3.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
 
         # Conectar botones a funciones
         ui.correcta.clicked.connect(self.correcta_clicked)
