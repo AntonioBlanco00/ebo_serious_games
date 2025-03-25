@@ -14,6 +14,5 @@ Para que la app de EBO2 funcione mediante doble click, es necesario copiar el ar
    ```sh
    cp ~/tu-ruta/ebo_serious_games/EBO2/EBO2.desktop ~/.local/share/applications/
    ```
-   ```
 
 Ahora podrás acceder al menú de juegos de EBO2 desde el escritorio o el menú de aplicaciones haciendo doble click.
