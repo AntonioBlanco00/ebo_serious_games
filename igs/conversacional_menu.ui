@@ -2292,7 +2292,7 @@ p, li { white-space: pre-wrap; }
     </font>
    </property>
    <property name="text">
-    <string>COMENZAR JUEGO</string>
+    <string>COMENZAR</string>
    </property>
   </widget>
   <widget class="QLabel" name="label">
@@ -2815,7 +2815,7 @@ p, li { white-space: pre-wrap; }
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu Mono'; font-size:20pt; font-weight:600; font-style:normal;&quot; bgcolor=&quot;#ffffff&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Ubuntu Mono','Ubuntu Mono'; font-size:11pt;&quot;&gt;Selecciona entre las opciones la personalidad que quieres que tenga EBO, introduce como se indica los datos del usuario y pulsa Comenzar para empezar el juego.&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Ubuntu Mono','Ubuntu Mono'; font-size:11pt;&quot;&gt;Selecciona entre las opciones la personalidad que quieres que tenga EBO, introduce como se indica los datos del usuario y pulsa COMENZAR para empezar el juego.&lt;/span&gt;&lt;/p&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Ubuntu Mono','Ubuntu Mono'; font-size:11pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>

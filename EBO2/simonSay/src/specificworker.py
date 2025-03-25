@@ -435,6 +435,8 @@ class SpecificWorker(GenericWorker):
 
                     self.cerrar_ui(1)
                     self.terminaHablar()
+                    self.fallos = self.fallos + 1
+
                     if self.restantes <= 0:
                         self.end_time = time.time()
                         self.elapsed_time = self.end_time - self.start_time  # Tiempo en segundos
@@ -456,7 +458,6 @@ class SpecificWorker(GenericWorker):
                         self.gestorsg_proxy.LanzarApp()
                         return
 
-                    self.fallos = self.fallos + 1
                     print("Mostrando la secuencia nuevamente...")
                     self.speech_proxy.say("Atención, repito la secuencia.", False)
                     self.respuesta = []  # Reinicia la respuesta

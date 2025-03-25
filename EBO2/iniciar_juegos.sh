@@ -1,36 +1,42 @@
 #!/bin/bash
 
+# Obtener la ruta del directorio donde se encuentra el script
+BASE_DIR="$(dirname "$(realpath "$0")")"
+
 # Ejecutar primero python3 reiniciar.py y esperar 1 segundo
-python3 reiniciar.py
+python3 "$BASE_DIR/reiniciar.py"
 sleep 1
 
-# Definir las rutas y nombres de las pestañas usando rutas relativas
-ruta1="./ebo_gpt"
-nombre1="GPT"
-ruta2="./pasapalabra"
-nombre2="Pasapalabra"
-ruta3="./simonSay"
-nombre3="SimonSay"
-ruta4="./storytelling"
-nombre4="Storytelling"
-ruta5="./app_juegos"
-nombre5="APP_JUEGOS"
-ruta6="./ebo_app"
-nombre6="EBO_APP"
+# Definir las rutas y los nombres de los scripts a ejecutar
+declare -A rutas
+declare -A scripts
 
+rutas["GPT"]="$BASE_DIR/ebo_gpt"
+scripts["GPT"]="ebo_gpt.py"
 
-# Comando para abrir una nueva pestaña con un comando específico en gnome-terminal
+rutas["Pasapalabra"]="$BASE_DIR/pasapalabra"
+scripts["Pasapalabra"]="pasapalabra.py"
+
+rutas["SimonSay"]="$BASE_DIR/simonSay"
+scripts["SimonSay"]="simonSay.py"
+
+rutas["Storytelling"]="$BASE_DIR/storytelling"
+scripts["Storytelling"]="storytelling.py"
+
+rutas["APP_JUEGOS"]="$BASE_DIR/app_juegos"
+scripts["APP_JUEGOS"]="app_juegos.py"
+
+rutas["EBO_APP"]="$BASE_DIR/ebo_app"
+scripts["EBO_APP"]="ebo_app.py"
+
+# Función para abrir una pestaña en gnome-terminal
 function abrir_pestana {
-    gnome-terminal --tab -- bash -c "$1; exec bash"
+    gnome-terminal --tab -- bash -c "cd '$1' && echo 'Ejecutando en $2' && src/$3 etc/config; exec bash"
 }
 
-# Abrir la primera ruta en la pestaña inicial y ejecutar el comando
-abrir_pestana "cd $ruta1 && echo 'Ejecutando en $nombre1' && src/ebo_gpt.py etc/config"
+# Iterar sobre las rutas y abrir pestañas
+for nombre in "${!rutas[@]}"; do
+    abrir_pestana "${rutas[$nombre]}" "$nombre" "${scripts[$nombre]}"
+done
 
-# Abrir las siguientes rutas en nuevas pestañas y ejecutar los comandos correspondientes
-abrir_pestana "cd $ruta2 && echo 'Ejecutando en $nombre2' && src/pasapalabra.py etc/config"
-abrir_pestana "cd $ruta3 && echo 'Ejecutando en $nombre3' && src/simonSay.py etc/config"
-abrir_pestana "cd $ruta4 && echo 'Ejecutando en $nombre4' && src/storytelling.py etc/config"
-abrir_pestana "cd $ruta5 && echo 'Ejecutando en $nombre5' && src/app_juegos.py etc/config"
-abrir_pestana "cd $ruta6 && echo 'Ejecutando en $nombre6' && src/ebo_app.py etc/config"
 

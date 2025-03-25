@@ -145,7 +145,7 @@ class SpecificWorker(GenericWorker):
 
     def setParams(self, params):
         # try:
-        #	self.innermodel = InnerModel(params["InnerModelPath"])
+        # 	self.innermodel = InnerModel(params["InnerModelPath"])
         # except:
         #	traceback.print_exc()
         #	print("Error reading config params")

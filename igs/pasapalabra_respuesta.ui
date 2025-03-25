@@ -54,9 +54,9 @@
      <colorrole role="Text">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+        <red>0</red>
+        <green>0</green>
+        <blue>0</blue>
        </color>
       </brush>
      </colorrole>
@@ -136,8 +136,17 @@
     <bold>true</bold>
    </font>
   </property>
+  <property name="focusPolicy">
+   <enum>Qt::NoFocus</enum>
+  </property>
   <property name="windowTitle">
    <string>Form</string>
+  </property>
+  <property name="layoutDirection">
+   <enum>Qt::LeftToRight</enum>
+  </property>
+  <property name="autoFillBackground">
+   <bool>true</bool>
   </property>
   <widget class="QPushButton" name="correcta">
    <property name="geometry">
@@ -893,7 +902,7 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>logos/logo_euro.png</pixmap>
+    <pixmap>../../../.designer/backup/logos/logo_euro.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
@@ -912,7 +921,7 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>logos/robolab.png</pixmap>
+    <pixmap>../../../.designer/backup/logos/robolab.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
