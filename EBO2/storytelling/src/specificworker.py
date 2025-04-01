@@ -133,6 +133,7 @@ class SpecificWorker(GenericWorker):
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked)
+        ui.back_button.clicked.connect(self.back_clicked)
 
 
 
@@ -161,6 +162,10 @@ class SpecificWorker(GenericWorker):
         else:
             self.ui.ayuda.show()
 
+    def back_clicked(self):
+        self.cerrar_ui(1)
+        self.gestorsg_proxy.LanzarApp()
+
     #### UI 2 #### ################ ############################################### ################
     def conversational_ui (self):
         #Carga la interfaz desde el archivo .ui
@@ -186,6 +191,8 @@ class SpecificWorker(GenericWorker):
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked2)
+
+        ui.back_button.clicked.connect(self.back_clicked2)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -242,6 +249,10 @@ class SpecificWorker(GenericWorker):
         else:
             self.ui2.ayuda.show()
 
+    def back_clicked2(self):
+        self.cerrar_ui(2)
+        self.gestorsg_proxy.LanzarApp()
+
     #### UI 3 #### ################ ############################################### ################
     def storytelling_ui (self):
         #Carga la interfaz desde el archivo .ui
@@ -264,6 +275,8 @@ class SpecificWorker(GenericWorker):
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked3)
+
+        ui.back_button.clicked.connect(self.back_clicked3)
 
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -361,6 +374,10 @@ class SpecificWorker(GenericWorker):
         else:
             self.ui3.ayuda.show()
 
+    def back_clicked3(self):
+        self.cerrar_ui(3)
+        self.gestorsg_proxy.LanzarApp()
+
 
     #### UI 4 #### ################ ############################################### ################
     def respuesta_ui (self):
@@ -386,6 +403,8 @@ class SpecificWorker(GenericWorker):
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked4)
+
+        ui.back_button.clicked.connect(self.back_clicked4)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -433,7 +452,10 @@ class SpecificWorker(GenericWorker):
             self.ui4.ayuda.hide()  # Si está visible, ocultarlo
         else:
             self.ui4.ayuda.show()
-        
+
+    def back_clicked4(self):
+        self.cerrar_ui(4)
+        self.gestorsg_proxy.LanzarApp()
 
     ################ ############################################### ################
     

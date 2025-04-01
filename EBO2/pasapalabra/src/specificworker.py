@@ -496,6 +496,8 @@ class SpecificWorker(GenericWorker):
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked)
+
+        ui.back_button.clicked.connect(self.back_clicked)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -559,6 +561,8 @@ class SpecificWorker(GenericWorker):
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked2)
+
+        ui.back_button.clicked.connect(self.back_clicked2)
         
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
@@ -629,6 +633,14 @@ class SpecificWorker(GenericWorker):
             self.ui2.ayuda.hide()  # Si está visible, ocultarlo
         else:
             self.ui2.ayuda.show()
+
+    def back_clicked(self):
+        self.cerrar_ui(1)
+        self.gestorsg_proxy.LanzarApp()
+
+    def back_clicked2(self):
+        self.cerrar_ui(2)
+        self.gestorsg_proxy.LanzarApp()
 
     ##########################################################################################
 

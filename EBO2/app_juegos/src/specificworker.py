@@ -117,8 +117,10 @@ class SpecificWorker(GenericWorker):
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked)
-        # Asegurar que el diccionario de UIs existe
 
+        ui.resultados_button.clicked.connect(self.ejecutar_scrip)
+
+        # Asegurar que el diccionario de UIs existe
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
             
@@ -161,6 +163,14 @@ class SpecificWorker(GenericWorker):
             self.ui.ayuda.hide()  # Si está visible, ocultarlo
         else:
             self.ui.ayuda.show()
+
+    def ejecutar_scrip(self):
+        try:
+            subprocess.run(["python3", "../../generar_resultados.py"], check=True)
+            QMessageBox.information(self, "Completado",
+                                    "La generación de resultados se ha completado con éxito.")
+        except subprocess.CalledProcessError as e:
+            QMessageBox.critical(self, "Error", f"Hubo un error al generar los resultados:\n{e}")
 
         ####################################################################################################################################
     

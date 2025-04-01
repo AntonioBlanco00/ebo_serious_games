@@ -877,7 +877,7 @@
    <property name="geometry">
     <rect>
      <x>730</x>
-     <y>560</y>
+     <y>460</y>
      <width>101</width>
      <height>91</height>
     </rect>
@@ -1727,7 +1727,7 @@ p, li { white-space: pre-wrap; }
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>robolab.png</pixmap>
+    <pixmap>../../../.designer/backup/robolab.png</pixmap>
    </property>
   </widget>
   <widget class="QLabel" name="label">
@@ -1743,7 +1743,7 @@ p, li { white-space: pre-wrap; }
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>logos/logo_euro.png</pixmap>
+    <pixmap>../../../.designer/backup/logos/logo_euro.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
@@ -1762,7 +1762,7 @@ p, li { white-space: pre-wrap; }
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>logos/robolab.png</pixmap>
+    <pixmap>../../../.designer/backup/logos/robolab.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
@@ -1832,7 +1832,7 @@ p, li { white-space: pre-wrap; }
      <x>620</x>
      <y>40</y>
      <width>201</width>
-     <height>121</height>
+     <height>151</height>
     </rect>
    </property>
    <property name="palette">
@@ -2308,7 +2308,66 @@ p, li { white-space: pre-wrap; }
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu Mono'; font-size:20pt; font-weight:600; font-style:normal;&quot; bgcolor=&quot;#ffffff&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Introduce el nombre del usuario, el nº de intentos que tendrá, el número de rondas que hará y el nivel de dificultad. Pulsa OK para comenzar.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Introduce el nombre del usuario, el nº de intentos que tendrá, el número de rondas que hará y el nivel de dificultad. Pulsa OK para comenzar. Pulsa VOLVER AL MENÚ DE INICIO si quieres volver al menú principal.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="back_button">
+   <property name="geometry">
+    <rect>
+     <x>690</x>
+     <y>570</y>
+     <width>171</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="palette">
+    <palette>
+     <active>
+      <colorrole role="Button">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>153</red>
+         <green>193</green>
+         <blue>241</blue>
+        </color>
+       </brush>
+      </colorrole>
+     </active>
+     <inactive>
+      <colorrole role="Button">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>153</red>
+         <green>193</green>
+         <blue>241</blue>
+        </color>
+       </brush>
+      </colorrole>
+     </inactive>
+     <disabled>
+      <colorrole role="Button">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>153</red>
+         <green>193</green>
+         <blue>241</blue>
+        </color>
+       </brush>
+      </colorrole>
+     </disabled>
+    </palette>
+   </property>
+   <property name="font">
+    <font>
+     <family>Ubuntu Mono</family>
+     <pointsize>14</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>VOLVER AL MENÚ 
+DE INICIO</string>
    </property>
   </widget>
  </widget>

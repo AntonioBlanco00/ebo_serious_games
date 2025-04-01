@@ -7,22 +7,22 @@ from datetime import datetime
 
 # Puedes eliminar current_date si ya no lo necesitas en ninguna parte
 # current_date = datetime.now().strftime("%d_%B_%Y").lower()
-
+print("-----------------------------------------------------")
 # Posibles rutas donde buscar los archivos JSON y su asignación a EBO1 o EBO2
 possible_paths = {
     "EBO1": [
-        "EBO1/pasapalabra/resultados_pasapalabra.json",
-        "EBO1/simonSay/resultados_juego.json"
+        "../../EBO1/pasapalabra/resultados_pasapalabra.json",
+        "../../EBO1/simonSay/resultados_juego.json"
     ],
     "EBO2": [
-        "EBO2/pasapalabra/resultados_pasapalabra.json",
-        "EBO2/simonSay/resultados_juego.json"
+        "../../EBO2/pasapalabra/resultados_pasapalabra.json",
+        "../../EBO2/simonSay/resultados_juego.json"
     ]
 }
 
 # Carpeta de resultados y copias de seguridad
-base_result_folder = "resultados"
-base_backup_folder = "copia_seguridad_datos"
+base_result_folder = "../../resultados"
+base_backup_folder = "../../copia_seguridad_datos"
 
 # --------------------------- SECCIÓN MODIFICADA: Función para crear nombres únicos para CSV ---------------------------
 def generate_unique_filename(directory, base_name, extension=".csv"):
@@ -169,8 +169,8 @@ def process_txt_files(input_dirs, output_directory, backup_directory):
                     print(rename_and_modify_txt_file(file_path, output_directory, backup_directory))
 
 # Rutas de entrada, salida y respaldo para archivos .txt
-txt_input_dirs = ["EBO2/ebo_gpt/conversaciones", 
-                  "EBO1/ebo_gpt/conversaciones"] 
+txt_input_dirs = ["../../EBO2/ebo_gpt/conversaciones", 
+                  "../../EBO1/ebo_gpt/conversaciones"] 
 
 txt_output_directory = "resultados/conversaciones"  # Ruta de salida para archivos .txt
 txt_backup_directory = "copia_seguridad_datos/conversaciones"  # Carpeta de respaldo para archivos .txt
