@@ -277,15 +277,15 @@ class SpecificWorker(GenericWorker):
     def move_clicked(self, mov):
         try:
             if mov == "Adelante":
-                self.differentialrobot_proxy.setSpeedBase(50, 0)
+                self.differentialrobot_proxy.setSpeedBase(0, 50)
             elif mov == "Izquierda":
-                # self.differentialrobot_proxy.setSpeedBase(0, -1)
-                self.turn(2.05 / 4, -(math.pi / 9))
+                self.differentialrobot_proxy.setSpeedBase(-50, 0)
+                # self.turn(2.05 / 4, -(math.pi / 9))
             elif mov == "Derecha":
-                # self.differentialrobot_proxy.setSpeedBase(0, 1)
-                self.turn(2.05 / 4, math.pi / 9)
-            elif mov == "Atras":
                 self.differentialrobot_proxy.setSpeedBase(50, 0)
+                # self.turn(2.05 / 4, math.pi / 9)
+            elif mov == "Atras":
+                self.differentialrobot_proxy.setSpeedBase(0, -50)
             else:
                 self.differentialrobot_proxy.setSpeedBase(0, 0)
         except Exception as e:
