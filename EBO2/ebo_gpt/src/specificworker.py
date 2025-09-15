@@ -60,7 +60,7 @@ class SpecificWorker(GenericWorker):
         self.conversacion_en_curso = False
         self.asisstantName  = ""
         self.userInfo = ""
-        self.NUM_LEDS = 52
+        self.NUM_LEDS = 54
         self.effect_event = threading.Event()
         self.effect_thread = None  # Variable para almacenar el hilo del efecto
         # speech_test = "Esto es un mensaje de prueba del Speech"

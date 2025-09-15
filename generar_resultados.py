@@ -5,9 +5,8 @@ import shutil
 import re
 from datetime import datetime
 
-# Puedes eliminar current_date si ya no lo necesitas en ninguna parte
-# current_date = datetime.now().strftime("%d_%B_%Y").lower()
 print("-----------------------------------------------------")
+
 # Posibles rutas donde buscar los archivos JSON y su asignación a EBO1 o EBO2
 possible_paths = {
     "EBO1": [
@@ -23,32 +22,6 @@ possible_paths = {
 # Carpeta de resultados y copias de seguridad
 base_result_folder = "../../resultados"
 base_backup_folder = "../../copia_seguridad_datos"
-
-# --------------------------- SECCIÓN MODIFICADA: Función para crear nombres únicos para CSV ---------------------------
-def generate_unique_filename(directory, base_name, extension=".csv"):
-    """
-    Genera un nombre de archivo único con la forma base_name_1, base_name_2, etc., en la carpeta 'directory'.
-    """
-    counter = 1
-    while True:
-        filename = f"{base_name}_{counter}{extension}"
-        full_path = os.path.join(directory, filename)
-        if not os.path.exists(full_path):
-            return full_path
-        counter += 1
-
-# --------------------------- SECCIÓN MODIFICADA: Función para crear nombres únicos para backups JSON (opcional) ---------------------------
-def generate_unique_json_backup_filename(directory, base_name, extension=".json"):
-    """
-    Genera un nombre de archivo único con la forma base_name_1, base_name_2, etc., en la carpeta 'directory'.
-    """
-    counter = 1
-    while True:
-        filename = f"{base_name}_{counter}{extension}"
-        full_path = os.path.join(directory, filename)
-        if not os.path.exists(full_path):
-            return full_path
-        counter += 1
 
 # Lista para almacenar los datos procesados
 found_files = []
@@ -74,48 +47,69 @@ for subfolder, paths in possible_paths.items():
                     except json.JSONDecodeError:
                         print(f"Error al procesar la línea: {line}")
                 
+                # Si no hay datos, pasamos al siguiente archivo
+                if not data:
+                    continue
+                
                 # Establecer los nombres de las columnas de acuerdo con el primer conjunto de datos
-                if data:
-                    fieldnames = list(data[0].keys())
-                    
-                    # Crear la carpeta de resultados
-                    result_folder = os.path.join(base_result_folder, subfolder)
-                    os.makedirs(result_folder, exist_ok=True)
+                fieldnames = list(data[0].keys())
+                
+                # Crear la carpeta de resultados (EBO1, EBO2, etc.)
+                result_folder = os.path.join(base_result_folder, subfolder)
+                os.makedirs(result_folder, exist_ok=True)
 
-                    # Determinar el "prefijo" base del archivo CSV
-                    if "pasapalabra" in json_file:
-                        base_csv_name = "resultados_pasapalabra"
-                    elif "resultados_juego" in json_file:
-                        base_csv_name = "resultados_juego_simon"
-                    else:
-                        continue  # Si no es ninguno de esos, no procesamos el archivo
+                # Decidimos el nombre del CSV según pasapalabra o simon
+                if "pasapalabra" in json_file:
+                    base_csv_name = "resultados_pasapalabra"
+                elif "resultados_juego" in json_file:
+                    base_csv_name = "resultados_juego_simon"
+                else:
+                    # Si no coincide con ninguno, no lo procesamos
+                    continue
 
-                    # --------------------------- SECCIÓN MODIFICADA: Uso de generate_unique_filename para evitar que se pisen ---------------------------
-                    output_file = generate_unique_filename(result_folder, base_csv_name, ".csv")
+                # En vez de generar uno nuevo, siempre usamos el mismo nombre:
+                output_file = os.path.join(result_folder, base_csv_name + ".csv")
 
-                    # Escribir los datos procesados en el archivo CSV
-                    with open(output_file, mode="w", newline="", encoding="utf-8") as file_csv:
-                        writer = csv.DictWriter(file_csv, fieldnames=fieldnames)
+                # Verificamos si ya existe el CSV. Si no, lo creamos y escribimos la cabecera.
+                file_exists = os.path.exists(output_file)
+
+                # Abrimos en modo "append" si ya existe, o "write" si no existe.
+                with open(output_file, mode="a" if file_exists else "w", newline="", encoding="utf-8") as file_csv:
+                    writer = csv.DictWriter(file_csv, fieldnames=fieldnames)
+                    # Si el archivo no existía antes, escribimos la cabecera
+                    if not file_exists:
                         writer.writeheader()
-                        writer.writerows(data)
-                    
-                    print(f"Archivo CSV generado en: {output_file}")
+                    # Ahora escribimos las nuevas filas
+                    writer.writerows(data)
+                
+                print(f"Datos añadidos al CSV: {output_file}")
 
 # Mover los archivos JSON encontrados a la carpeta de copia de seguridad con el nombre correspondiente
+def generate_unique_json_backup_filename(directory, base_name, extension=".json"):
+    """
+    Genera un nombre de archivo único con la forma base_name_1, base_name_2, etc., en la carpeta 'directory'.
+    """
+    counter = 1
+    while True:
+        filename = f"{base_name}_{counter}{extension}"
+        full_path = os.path.join(directory, filename)
+        if not os.path.exists(full_path):
+            return full_path
+        counter += 1
+
 for full_path, subfolder in found_files:
     backup_folder = os.path.join(base_backup_folder, subfolder)
     os.makedirs(backup_folder, exist_ok=True)  # Crear la carpeta si no existe
     filename = os.path.basename(full_path)
 
-    # --------------------------- SECCIÓN MODIFICADA (OPCIONAL): Usar nombre único sin fecha para JSON también ---------------------------
-    #   Si quieres conservar la fecha en los JSON de respaldo, deja tu lógica anterior.
-    #   Si no, usa generate_unique_json_backup_filename:
+    # Creamos un nombre único para evitar sobreescritura en la carpeta de backup
     backup_filename = generate_unique_json_backup_filename(backup_folder, filename.split('.')[0], ".json")
 
     shutil.move(full_path, backup_filename)
     print(f"Archivo JSON movido a: {backup_filename}")
 
-# --------------------------- Procesamiento de archivos .txt (sin cambios grandes, salvo que quieras modificarlo igual) ---------------------------
+
+# --------------------------- Procesamiento de archivos .txt ---------------------------
 
 def rename_and_modify_txt_file(file_path, output_directory, backup_directory):
     with open(file_path, "r", encoding="utf-8") as file:
@@ -127,7 +121,6 @@ def rename_and_modify_txt_file(file_path, output_directory, backup_directory):
     if match:
         goal = match.group(1).strip()
         player_name = match.group(2).strip()
-        # Si deseas eliminar también la fecha, ajusta aquí
         base_name = f"storytelling_{player_name}_{goal}"
     else:
         # Si no se encuentra goal y nombre del jugador, buscar el nombre del usuario
@@ -169,12 +162,13 @@ def process_txt_files(input_dirs, output_directory, backup_directory):
                     print(rename_and_modify_txt_file(file_path, output_directory, backup_directory))
 
 # Rutas de entrada, salida y respaldo para archivos .txt
-txt_input_dirs = ["../../EBO2/ebo_gpt/conversaciones", 
-                  "../../EBO1/ebo_gpt/conversaciones"] 
+txt_input_dirs = [
+    "../../EBO2/ebo_gpt/conversaciones", 
+    "../../EBO1/ebo_gpt/conversaciones"
+] 
 
 txt_output_directory = "resultados/conversaciones"  # Ruta de salida para archivos .txt
 txt_backup_directory = "copia_seguridad_datos/conversaciones"  # Carpeta de respaldo para archivos .txt
 
 # Procesar los archivos .txt
 process_txt_files(txt_input_dirs, txt_output_directory, txt_backup_directory)
-

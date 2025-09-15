@@ -135,8 +135,6 @@ class SpecificWorker(GenericWorker):
         ui.ayuda_button.clicked.connect(self.ayuda_clicked)
         ui.back_button.clicked.connect(self.back_clicked)
 
-
-
         # Cerrar con la x
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
