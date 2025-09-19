@@ -1,40 +1,40 @@
 # ebo_serious_games
 
 
-## Creación de entorno virtual e instalación de dependencias
+## Instalación y configuración de EBO2
 
-Antes de ejecutar cualquier juego o script, es recomendable crear un entorno virtual y asegurarse de que todas las dependencias estén instaladas.  
+
+Ahora todo el proceso de preparar la aplicación se realiza mediante el script `install.sh`, que automatiza la creación del entorno virtual, la instalación de dependencias y la configuración del lanzador.
+
 
 ### Pasos
 
+
 1. Abre tu terminal y navega a la carpeta `EBO2`:
-   ```sh
-   cd EBO2
-   ```
+```sh
+cd EBO2
+```
 
-2. Crea un entorno virtual llamado `games_venv`:
-   ```sh
-   python3 -m venv games_venv
-   ```
-   
-3. Activa el entorno virtual:
-   ```sh
-   source games_venv/bin/activate
-   ```
 
-4. Instala todas las dependencias del proyecto usando `requirements.txt`:
-   ```sh
-   pip install -r requirements.txt
-   ```
-   
-5. En este punto para ejecutar la aplicación bastará con configurar la IP que tiene EBO2 con:
-   ```sh
-   python3 actualizar_configs.py
-   ```
-   Y ejecutar la aplicación con:
-   ```sh
-   bash iniciar_juegos.sh
-   ```
+2. Ejecuta el script de instalación:
+```sh
+./install.sh
+```
+Este script:
+- Crea el entorno virtual `games_venv` si no existe.
+- Instala todas las dependencias desde `requirements.txt`.
+- Configura el lanzador `.desktop` en el menú de aplicaciones y el escritorio.
+
+
+3. Configura la IP que utiliza EBO2 (opcional, según sea necesario):
+```sh
+python3 actualizar_configs.py
+```
+
+
+4. Ejecuta la aplicación:
+- **Desde el escritorio**: haz doble click en el icono de EBO2 (la primera vez tendrás que pulsar click derecho y: allow launching).
+- **Desde el menú de aplicaciones**: busca EBO2 y ejecútalo directamente sin pasos adicionales.
 
 ## Configuración de `ebo_gpt`
 
