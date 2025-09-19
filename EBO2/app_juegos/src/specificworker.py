@@ -21,7 +21,7 @@
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QFrame, QMessageBox
 from PySide6 import QtUiTools
 from rich.console import Console
 from genericworker import *
@@ -49,19 +49,19 @@ class SpecificWorker(GenericWorker):
             self.timer.timeout.connect(self.compute)
             self.timer.start(self.Period)
 
-        self.ui = self.v_principal()
-
         self.juego_seleccionado = False
-
         self.ultimo_estado = None
-
-        self.GestorSG_LanzarApp()
+        self.ebo_listo = False
 
 
     def __del__(self):
         """Destructor"""
 
     def setParams(self, params):
+        self.ip = params["ip"]
+        self.ui = self.v_principal()
+        self.GestorSG_LanzarApp()
+
         # try:
         #	self.innermodel = InnerModel(params["InnerModelPath"])
         # except:
@@ -114,11 +114,14 @@ class SpecificWorker(GenericWorker):
         ui.story_button.clicked.connect(self.story_clicked)
         ui.simon_button.clicked.connect(self.simon_clicked)
         ui.pasapalabra_button.clicked.connect(self.pasapalabra_clicked)
+        ui.ip_button.clicked.connect(self.configurar_ip)
 
         ui.ayuda.hide()
         ui.ayuda_button.clicked.connect(self.ayuda_clicked)
 
         ui.resultados_button.clicked.connect(self.ejecutar_scrip)
+
+        self.verificar_ping(ui.cuadradito)
 
         # Asegurar que el diccionario de UIs existe
         if not hasattr(self, 'ui_numbers'):
@@ -131,32 +134,50 @@ class SpecificWorker(GenericWorker):
 
 
     def story_clicked(self):
-        self.ui.removeEventFilter(self) # Desactivamos y activamos el eventfilter antes y despues de cerrar la ventana para que no se raye
-        self.ui.close()
-        self.ui.installEventFilter(self)
-        
-        self.juego_seleccionado = True
-        self.storytelling_proxy.StartGame()
+        if self.ebo_listo:
+            self.ui.removeEventFilter(self) # Desactivamos y activamos el eventfilter antes y despues de cerrar la ventana para que no se raye
+            self.ui.close()
+            self.ui.installEventFilter(self)
 
-
+            self.juego_seleccionado = True
+            self.storytelling_proxy.StartGame()
+        else:
+            QMessageBox.warning(
+                self.ui,  # parent
+                "Advertencia",  # título de la ventana
+                "Por favor, configura la IP de ebo."  # mensaje
+            )
 
     def simon_clicked(self):
-        self.ui.removeEventFilter(self)
-        self.ui.close()
-        self.ui.installEventFilter(self)
-        
-        self.juego_seleccionado = True
-        self.juegosimonsay_proxy.StartGame()
+        if self.ebo_listo:
+            self.ui.removeEventFilter(self)
+            self.ui.close()
+            self.ui.installEventFilter(self)
 
-
+            self.juego_seleccionado = True
+            self.juegosimonsay_proxy.StartGame()
+        else:
+            QMessageBox.warning(
+                self.ui,  # parent
+                "Advertencia",  # título de la ventana
+                "Por favor, configura la IP de ebo."  # mensaje
+            )
 
     def pasapalabra_clicked(self):
-        self.ui.removeEventFilter(self)
-        self.ui.close()
-        self.ui.installEventFilter(self)
-        
-        self.juego_seleccionado = True
-        self.pasapalabra_proxy.StartGame()
+        if self.ebo_listo:
+            self.ui.removeEventFilter(self)
+            self.ui.close()
+            self.ui.installEventFilter(self)
+
+            self.juego_seleccionado = True
+            self.pasapalabra_proxy.StartGame()
+        else:
+            QMessageBox.warning(
+                self.ui,  # parent
+                "Advertencia",  # título de la ventana
+                "Por favor, configura la IP de ebo."  # mensaje
+            )
+
 
     def ayuda_clicked(self):
         if self.ui.ayuda.isVisible():  # Verifica si está visible
@@ -171,6 +192,34 @@ class SpecificWorker(GenericWorker):
                                     "La generación de resultados se ha completado con éxito.")
         except subprocess.CalledProcessError as e:
             QMessageBox.critical(self, "Error", f"Hubo un error al generar los resultados:\n{e}")
+
+    def configurar_ip(self):
+        try:
+            subprocess.run(["python3", "../actualizar_configs.py"], check=True)
+            # Al terminar, actualizamos el indicador en el hilo principal
+            self.ui.cuadradito.setStyleSheet("background-color: green; border: 1px solid black;")
+            self.ebo_listo = True
+        except subprocess.CalledProcessError:
+            self.ui.cuadradito.setStyleSheet("background-color: red; border: 1px solid black;")
+            self.ebo_listo = False
+
+
+    def verificar_ping(self, indicador: QFrame):
+        print("COMPROBANDO PING")
+        try:
+            resultado = subprocess.run(
+                ["ping", "-c", "1", self.ip],  # Linux/Mac
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            if resultado.returncode == 0:
+                indicador.setStyleSheet("background-color: green; border: 1px solid black;")
+                self.ebo_listo = True
+            else:
+                indicador.setStyleSheet("background-color: red; border: 1px solid black;")
+                self.ebo_listo = False
+        except Exception:
+            indicador.setStyleSheet("background-color: red; border: 1px solid black;")
 
         ####################################################################################################################################
     

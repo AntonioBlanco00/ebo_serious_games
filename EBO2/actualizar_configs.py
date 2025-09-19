@@ -30,6 +30,11 @@ def modificar_ip_en_config(ruta_config, nueva_ip):
         contenido
     )
 
+    # Buscar y reemplazar 'localhost'
+    if 'localhost' in contenido_modificado:
+        contenido_modificado = contenido_modificado.replace('localhost', nueva_ip)
+        print(f"Se reemplazó 'localhost' por {nueva_ip} en: {ruta_config}")
+
     # Guardar los cambios en el archivo
     with open(ruta_config, 'w') as archivo:
         archivo.write(contenido_modificado)
@@ -38,10 +43,11 @@ def modificar_ip_en_config(ruta_config, nueva_ip):
 
 def verificar_conexion_ip(ip):
     try:
-        resultado = subprocess.run(["ping", "-c", "1", "-W", "1", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if resultado.returncode != 0:
-            return False
-        return True
+        resultado = subprocess.run(
+            ["ping", "-c", "1", "-W", "1", ip],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        return resultado.returncode == 0
     except Exception:
         return False
 
@@ -59,8 +65,11 @@ def ejecutar_programa():
         messagebox.showinfo("Éxito", "El proceso se completó correctamente.")
         root.destroy()  # Cerrar la interfaz gráfica
     else:
-        messagebox.showerror("Error",
-                             "No se puede establecer conexión. Revisa que EBO esté encendido y que la IP sea la correcta. Recuerda que tanto este ordenador como EBO tienen que estar conectados al mismo wifi")
+        messagebox.showerror(
+            "Error",
+            "No se puede establecer conexión. Revisa que EBO esté encendido y que la IP sea la correcta. "
+            "Recuerda que tanto este ordenador como EBO tienen que estar conectados al mismo wifi"
+        )
 
 
 if __name__ == "__main__":
@@ -70,7 +79,7 @@ if __name__ == "__main__":
     # Crear la interfaz gráfica
     root = tk.Tk()
     root.title("Configurador de IPs")
-    root.geometry("400x200")
+    root.geometry("600x400")
     root.configure(bg="#f5f5f5")
 
     style = ttk.Style()
@@ -80,9 +89,18 @@ if __name__ == "__main__":
     frame = ttk.Frame(root, padding="10")
     frame.pack(expand=True)
 
-    label_instruccion = ttk.Label(frame, text="Introduce la nueva IP que deseas configurar:")
-    label_instruccion.pack(pady=10)
+    texto = (
+        "Introduce la nueva IP que deseas configurar:\n\n"
+        "Para obtener la IP:\n"
+        "1- Abre un terminal en EBO\n"
+        "2- Ejecuta ifconfig\n"
+        "3- Ahi aparecerá la IP a introducir, en wlan0\n"
+        "\n"
+        "IP:"
+    )
 
+    label_instruccion = ttk.Label(frame, text=texto, justify="left")
+    label_instruccion.pack(pady=10)
     entry_ip = ttk.Entry(frame, width=30, font=("Arial", 12))
     entry_ip.pack(pady=5)
 
@@ -90,5 +108,3 @@ if __name__ == "__main__":
     boton_procesar.pack(pady=20)
 
     root.mainloop()
-
-
