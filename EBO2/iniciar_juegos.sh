@@ -29,14 +29,20 @@ scripts["APP_JUEGOS"]="app_juegos.py"
 rutas["EBO_APP"]="$BASE_DIR/ebo_app"
 scripts["EBO_APP"]="ebo_app.py"
 
-# Función para abrir una pestaña en gnome-terminal
+# Función para abrir una pestaña en gnome-terminal con entorno virtual
 function abrir_pestana {
-    gnome-terminal --tab -- bash -c "cd '$1' && echo 'Ejecutando en $2' && src/$3 etc/config; exec bash"
+    gnome-terminal --tab -- bash -c "
+        cd '$1' &&
+        echo 'Activando games_venv...' &&
+	source '$BASE_DIR/games_venv/bin/activate' &&
+        echo 'Ejecutando en $2' &&
+        src/$3 etc/config;
+        exec bash
+    "
 }
 
 # Iterar sobre las rutas y abrir pestañas
 for nombre in "${!rutas[@]}"; do
     abrir_pestana "${rutas[$nombre]}" "$nombre" "${scripts[$nombre]}"
 done
-
 
