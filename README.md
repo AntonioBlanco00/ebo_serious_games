@@ -25,14 +25,7 @@ Este script:
 - Instala todas las dependencias desde `requirements.txt`.
 - Configura el lanzador `.desktop` en el menú de aplicaciones y el escritorio.
 
-
-3. Configura la IP que utiliza EBO2 (opcional, según sea necesario):
-```sh
-python3 actualizar_configs.py
-```
-
-
-4. Ejecuta la aplicación:
+3. Ejecuta la aplicación:
 - **Desde el escritorio**: haz doble click en el icono de EBO2 (la primera vez tendrás que pulsar click derecho y: allow launching).
 - **Desde el menú de aplicaciones**: busca EBO2 y ejecútalo directamente sin pasos adicionales.
 
