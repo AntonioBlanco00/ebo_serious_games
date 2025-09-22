@@ -25,9 +25,11 @@ from PySide6.QtWidgets import QApplication, QFrame, QMessageBox
 from PySide6 import QtUiTools
 from rich.console import Console
 from genericworker import *
+import os
 from time import sleep
 import interfaces as ifaces
 import subprocess
+from config_ips import lanzar_gui_configuracion
 
 sys.path.append('/opt/robocomp/lib')
 console = Console(highlight=False)
@@ -194,14 +196,22 @@ class SpecificWorker(GenericWorker):
             QMessageBox.critical(self, "Error", f"Hubo un error al generar los resultados:\n{e}")
 
     def configurar_ip(self):
-        try:
-            subprocess.run(["python3", "../actualizar_configs.py"], check=True)
-            # Al terminar, actualizamos el indicador en el hilo principal
-            self.ui.cuadradito.setStyleSheet("background-color: green; border: 1px solid black;")
-            self.ebo_listo = True
-        except subprocess.CalledProcessError:
-            self.ui.cuadradito.setStyleSheet("background-color: red; border: 1px solid black;")
-            self.ebo_listo = False
+        ruta_actual = os.getcwd()
+        ruta_base = os.path.dirname(ruta_actual)
+        resultado = lanzar_gui_configuracion(ruta_base)
+
+        if resultado.get("ok"):
+            print("La IP se ha cambiado correctamente. Reiniciando para ajustar la nueva configuración")
+            script_path = os.path.join(ruta_base, "iniciar_juegos.sh")
+
+            # Ejecutar el script .sh
+            try:
+                subprocess.run(["gnome-terminal", "--", "bash", script_path])
+                print("Script iniciar_juegos.sh ejecutado correctamente.")
+            except subprocess.CalledProcessError as e:
+                print(f"Error al ejecutar el script: {e}")
+        else:
+            print("No se cambió la IP. No se realizará ninguna acción.")
 
 
     def verificar_ping(self, indicador: QFrame):

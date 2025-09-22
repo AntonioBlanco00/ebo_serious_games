@@ -1601,7 +1601,7 @@ p, li { white-space: pre-wrap; }
   <widget class="QTextEdit" name="textEdit_3">
    <property name="geometry">
     <rect>
-     <x>30</x>
+     <x>50</x>
      <y>640</y>
      <width>661</width>
      <height>221</height>
@@ -1786,7 +1786,7 @@ p, li { white-space: pre-wrap; }
   <widget class="QFrame" name="cuadradito">
    <property name="geometry">
     <rect>
-     <x>460</x>
+     <x>480</x>
      <y>640</y>
      <width>31</width>
      <height>31</height>
