@@ -30,7 +30,7 @@ Clona el repo y entra en la carpeta `EBO2`:
 
 
   ```sh
-  git clone https://github.com/<TU_ORGANIZACION_O_USUARIO>/ebo_serious_games.git
+  git clone https://github.com/AntonioBlanco00/ebo_serious_games.git
   cd ebo_serious_games/EBO2
   ```
 
