@@ -6,8 +6,31 @@
 
 Ahora todo el proceso de preparar la aplicación se realiza mediante el script `install.sh`, que automatiza la creación del entorno virtual, la instalación de dependencias y la configuración del lanzador.
 
+---
 
-### Pasos
+### Configuración previa (dependencias del sistema)
+
+Antes de ejecutar el script de instalación, asegúrate de tener instaladas las librerías necesarias del sistema.  
+Estas librerías permiten que la aplicación funcione correctamente con Tkinter y con PySide/Qt (plugin xcb).
+
+En Ubuntu / Debian puedes instalarlas con:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y \
+    python3-tk \
+    libxcb-xinerama0 \
+    libxcb-cursor0 \
+    libxkbcommon-x11-0 \
+    libxcb-randr0 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
+    libglu1-mesa
+
+
+### Pasos de instalación
 
 
 1. Abre tu terminal y navega a la carpeta `EBO2`:
