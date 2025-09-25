@@ -1,4 +1,5 @@
 #!/bin/bash
+export ROBOCOMP=/opt/robocomp # para evitar logs incomodos
 
 # Obtener la ruta del directorio donde se encuentra el script
 BASE_DIR="$(dirname "$(realpath "$0")")"

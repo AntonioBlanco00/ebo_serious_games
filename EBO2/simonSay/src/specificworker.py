@@ -19,23 +19,36 @@
 #    along with RoboComp.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication
+
 from rich.console import Console
 from genericworker import *
 import interfaces as ifaces
 from time import sleep
-from pynput import keyboard
 import random
 from PySide6 import QtUiTools
-from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
-from PySide6.QtCore import Qt
-import pygame
+from PySide6.QtCore import Qt, QTimer, QFile, Signal, Slot, QEvent
+from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QPixmap
 import time
 import pandas as pd
 from datetime import datetime
+import os, warnings
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+warnings.filterwarnings(
+    "ignore",
+    message=r"pkg_resources is deprecated as an API.*",
+    category=UserWarning,
+    module=r"pygame\.pkgdata"
+)
+import pygame
 
-
+# Rutas de UIs y logos
+UI_BTN      = "../../igs/simon_botones.ui"
+UI_MENU     = "../../igs/simon_menu.ui"
+UI_CHECK    = "../../igs/botonUI.ui"
+UI_START    = "../../igs/comenzarUI.ui"
+LOGO_1      = "../../igs/logos/logo_euro.png"
+LOGO_2      = "../../igs/logos/robolab.png"
 
 sys.path.append('/opt/robocomp/lib')
 console = Console(highlight=False)
@@ -48,7 +61,7 @@ console = Console(highlight=False)
 
 
 class SpecificWorker(GenericWorker):
-    update_ui_signal = Signal()
+    update_ui_signal = QtCore.Signal()
     def __init__(self, proxy_map, startup_check=False):
         super(SpecificWorker, self).__init__(proxy_map)
         self.Period = 2000
@@ -72,13 +85,6 @@ class SpecificWorker(GenericWorker):
             "game_over": pygame.mixer.Sound('src/game_over.wav'),
         }
 
-        self.nombre = ""
-        self.dificultad = ""
-        self.intentos = 0
-        self.running = False
-        self.respuesta = []
-        self.rondas = ""
-
         self.ayuda = False
 
         self.ui = self.load_ui()
@@ -86,36 +92,7 @@ class SpecificWorker(GenericWorker):
         self.ui3 = self.load_check()
         self.ui4 = self.comenzar_checked()
 
-        self.boton = False
-        self.reiniciar = False
-        self.gameOver = False
-        self.start_time = None
-        self.end_time = None
-        self.elapsed_time = None
-
-        # self.ui2.show()
-        # time.sleep(0.0001)
-        # self.cerrar_ui(2)
-
-        self.rondas_complet = 0
-        self.fecha = 0
-        self.hora = 0
-        self.fallos = 0
-
-        self.v1 = 2
-        self.v2 = 1
-
-        self.start_question_time = None
-        self.end_question_time = 0
-        self.response_time = 0
-        self.responses_times = []
-        self.media = 0
-
-        ########## DEFINICIÓN DEL DATAFRAME DONDE SE ALMACENAN LOS DATOS ##########
-        self.df = pd.DataFrame(columns=[
-            "Nombre", "Intentos", "Rondas", "Dificultad", "Fecha", "Hora",
-            "Rondas completadas", "Fallos", "Tiempo transcurrido (min)", "Tiempo transcurrido (seg)", "Tiempo medio respuesta (seg):"
-        ])
+        self.reiniciar_variables()
 
         ########## BATERÍA DE RESPUESTAS ##########
         self.bateria_responder = [
@@ -173,7 +150,59 @@ class SpecificWorker(GenericWorker):
             "¡Finalizado, te has lucido!"
         ]
         
-        self.update_ui_signal.connect(self.on_update_ui)
+        self.update_ui_signal.connect(self.handle_update_ui)
+
+    def load_ui_generic(self, ui_path, ui_number, *, logo_paths=None, botones=None,
+                        ayuda_button=None, back_button=None, after_load=None):
+        loader = QtUiTools.QUiLoader()
+        file = QFile(ui_path)
+        file.open(QFile.ReadOnly)
+        ui = loader.load(file)
+        file.close()
+
+        # Logos
+        if logo_paths:
+            for label_name, path in logo_paths.items():
+                label = getattr(ui, label_name, None)
+                if label:
+                    label.setPixmap(QPixmap(path))
+                    label.setScaledContents(True)
+
+        # Botones
+        if botones:
+            for btn_name, func in botones.items():
+                btn = getattr(ui, btn_name, None)
+                if btn:
+                    btn.clicked.connect(func)
+
+        # Ayuda
+        if ayuda_button and hasattr(ui, ayuda_button):
+            getattr(ui, ayuda_button).clicked.connect(lambda: self.toggle_ayuda(ui))
+            if hasattr(ui, "ayuda"):
+                ui.ayuda.hide()
+
+        # Back
+        if back_button and hasattr(ui, back_button):
+            getattr(ui, back_button).clicked.connect(lambda: self.back_clicked_ui(ui_number))
+
+        # Hook opcional post-carga (por si quieres hacer algo extra)
+        if callable(after_load):
+            after_load(ui)
+
+        # Registrar para eventFilter
+        if not hasattr(self, 'ui_numbers'):
+            self.ui_numbers = {}
+        self.ui_numbers[ui] = ui_number
+        ui.installEventFilter(self)
+        return ui
+
+    def toggle_ayuda(self, ui):
+        if hasattr(ui, "ayuda"):
+            ui.ayuda.setVisible(not ui.ayuda.isVisible())
+
+    def back_clicked_ui(self, ui_number):
+        self.cerrar_ui(ui_number)
+        self.gestorsg_proxy.LanzarApp()
 
     ########## FUNCIÓN PARA AGREGAR LOS DATOS RECOGIDOS AL DATAFRAME ##########
     def agregar_resultados(self, nombre, intentos, rondas, dificultad, fecha, hora, rondas_completadas, fallos, tiempo_transcurrido_min, tiempo_transcurrido_seg, tiempo_medio_respuesta):
@@ -404,89 +433,107 @@ class SpecificWorker(GenericWorker):
     def get_respuesta(self):
         self.respuesta = []
         self.intent = 0
-        
+
         if self.start_question_time is None:
             self.start_question_time = time.time()
 
         print("Introduce la secuencia de colores uno a uno")
 
-        # Inicio de la ronda, aparecen los 4 botones.
-        while len(self.respuesta) < len(self.color_aleatorio) and self.running is True:
-            # Mostrar la interfaz gráfica con botones
-            self.centrar_ventana(self.ui)
-            self.ui.show()
-            QApplication.processEvents()
+        # Bucle de la ronda: hasta que el usuario iguale la longitud de la secuencia o termine el juego
+        while self.running and len(self.respuesta) < len(self.color_aleatorio):
+            # Mostrar UI y procesar eventos
+            self._mostrar_ui_botones()
 
-            self.emotionalmotor_proxy.expressJoy()
-            # Verifica si la respuesta es correcta hasta el momento, cada pulsado de botón.
-            for idx in range(len(self.respuesta)):
-                if self.respuesta[idx] != self.color_aleatorio[idx]:
-                    self.intent += 1
-                    self.restantes = int(self.intentos) - int(self.intent)
-                    if self.restantes > 1:
-                        self.speech_proxy.say(
-                            f"Respuesta incorrecta. {self.elegir_respuesta(self.bateria_fallos)} .Te quedan {self.restantes} intentos.", False)
-                    elif self.restantes == 1:
-                        self.speech_proxy.say(
-                            f"Respuesta incorrecta. {self.elegir_respuesta(self.bateria_fallos)}.Este es tu último intento.", False)
-                    else:
-                        self.speech_proxy.say(
-                            f"Respuesta incorrecta, no te quedan más intentos.", False)
+            # ¿El prefijo actual coincide con la secuencia objetivo?
+            if not self._chequear_prefix_ok():
+                self.intent += 1
+                self.restantes = int(self.intentos) - int(self.intent)
 
-                    self.cerrar_ui(1)
-                    self.terminaHablar()
-                    self.fallos = self.fallos + 1
+                # Feedback de intentos
+                self.speech_proxy.say(self._mensaje_intentos(self.restantes), False)
+                self.cerrar_ui(1)
+                self.terminaHablar()
+                self.fallos += 1
 
-                    if self.restantes <= 0:
-                        self.end_time = time.time()
-                        self.elapsed_time = self.end_time - self.start_time  # Tiempo en segundos
-                        self.media = sum(self.responses_times) / len(self.responses_times)
-                        # Convertir el tiempo a minutos y segundos
-                        minutes = int(self.elapsed_time // 60)
-                        seconds = int(self.elapsed_time % 60)
-                        rondas = int(self.rondas_complet) - 1
-                        print("Game Over")
-                        self.speech_proxy.say(self.elegir_respuesta(self.bateria_fin_juego), False)
-                        print(f"Juego terminado. Tiempo transcurrido: {minutes} minutos y {seconds} segundos.")
-                        self.terminaHablar()
-                        self.fantasia_color()
-                        self.running = False
-                        self.boton = False
-                        self.agregar_resultados(self.nombre, self.intentos, self.rondas, self.dificultad, self.fecha, self.hora,
-                                                rondas, self.fallos, minutes, seconds ,self.media)
-                        self.guardar_resultados()
-                        self.gestorsg_proxy.LanzarApp()
-                        return
+                # Sin intentos: GAME OVER
+                if self.restantes <= 0:
+                    self._game_over()
+                    return
 
-                    print("Mostrando la secuencia nuevamente...")
-                    self.speech_proxy.say("Atención, repito la secuencia.", False)
-                    self.respuesta = []  # Reinicia la respuesta
-                    self.terminaHablar()
-                    print(self.color_aleatorio)
-                    for color in self.color_aleatorio:
-                        self.encender_LEDS(color)
-                        sleep(self.v1)
-                        self.encender_LEDS("negro")
-                        sleep(self.v2)
-                    break
-        
-        if self.running is True:
-            self.cerrar_ui(1) # Cierra la ventana cuando el juego termine
+                # Repetir secuencia y reiniciar respuesta parcial
+                self.respuesta = []
+                self._repetir_secuencia()
+                # vuelve al while (no incrementamos nada)
+                continue
+
+        # Si hemos salido del while por éxito y el juego sigue vivo, cierre de ronda
+        if self.running:
+            self.cerrar_ui(1)
             self.speech_proxy.say(self.elegir_respuesta(self.bateria_aciertos), False)
             self.terminaHablar()
             print("Tu respuesta ha sido:", self.respuesta)
 
+    def _mostrar_ui_botones(self):
+        """Muestra la UI de botones centrada y procesa eventos."""
+        self.centrar_ventana(self.ui)
+        self.ui.show()
+        QApplication.processEvents()
+        self.emotionalmotor_proxy.expressJoy()
 
-    def fantasia_color(self):
-        i = 0
+    def _chequear_prefix_ok(self):
+        """Comprueba si la respuesta actual coincide con el prefijo de la secuencia."""
+        for idx, col in enumerate(self.respuesta):
+            if col != self.color_aleatorio[idx]:
+                return False
+        return True
+
+    def _mensaje_intentos(self, restantes: int) -> str:
+        if restantes > 1:
+            return f"Respuesta incorrecta. {self.elegir_respuesta(self.bateria_fallos)} .Te quedan {restantes} intentos."
+        if restantes == 1:
+            return f"Respuesta incorrecta. {self.elegir_respuesta(self.bateria_fallos)}.Este es tu último intento."
+        return "Respuesta incorrecta, no te quedan más intentos."
+
+    def _repetir_secuencia(self):
+        """Vocaliza aviso y repite la secuencia luminosa completa."""
+        print("Mostrando la secuencia nuevamente...")
+        self.speech_proxy.say("Atención, repito la secuencia.", False)
+        self.terminaHablar()
+        print(self.color_aleatorio)
+        for color in self.color_aleatorio:
+            self.encender_LEDS(color)
+            sleep(self.v1)
+            self.encender_LEDS("negro")
+            sleep(self.v2)
+
+    def _game_over(self):
+        """Cierra partida guardando resultados y lanzando el menú."""
+        self.end_time = time.time()
+        self.elapsed_time = self.end_time - self.start_time  # seg
+        self.media = (sum(self.responses_times) / len(self.responses_times)) if self.responses_times else 0.0
+        minutes = int(self.elapsed_time // 60)
+        seconds = int(self.elapsed_time % 60)
+        rondas = int(self.rondas_complet) - 1
+        print("Game Over")
+        self.speech_proxy.say(self.elegir_respuesta(self.bateria_fin_juego), False)
+        print(f"Juego terminado. Tiempo transcurrido: {minutes} minutos y {seconds} segundos.")
+        self.terminaHablar()
+        self.fantasia_color()
+        self.running = False
+        self.boton = False
+        self.agregar_resultados(self.nombre, self.intentos, self.rondas, self.dificultad,
+                                self.fecha, self.hora, rondas, self.fallos, minutes, seconds, self.media)
+        self.guardar_resultados()
+        self.gestorsg_proxy.LanzarApp()
+
+    def fantasia_color(self, veces: int = 3):
         self.emotionalmotor_proxy.expressJoy()
         self.gameOver = True
-        while i < 3:
-            self.encender_LEDS("rojo")
+        for _ in range(veces):
+            self.encender_LEDS("rojo");
             sleep(0.5)
-            self.encender_LEDS("negro")
+            self.encender_LEDS("negro");
             sleep(0.5)
-            i += 1
         self.gameOver = False
 
     def prueba (self):
@@ -529,52 +576,24 @@ class SpecificWorker(GenericWorker):
                         ########## INTERFACES GRÁFICAS ##########
     ####################################################################################################################################
 
-    def load_ui (self):
-        #Carga la interfaz desde el archivo .ui
-        loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/simon_botones.ui")
-        file.open(QtCore.QFile.ReadOnly)
-        ui = loader.load(file)
-        file.close()
-
-        # Conectar botones a funciones
-        ui.rojo.clicked.connect(self.rojo_clicked)
-        ui.azul.clicked.connect(self.azul_clicked)
-        ui.verde.clicked.connect(self.verde_clicked)
-        ui.amarillo.clicked.connect(self.amarillo_clicked)
-        
-        # Cerrar con la x
-        if not hasattr(self, 'ui_numbers'):
-            self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 1  
-        ui.installEventFilter(self) 
-
+    def load_ui(self):
+        ui = self.load_ui_generic(
+            UI_BTN, ui_number=1,
+            botones={
+                "rojo": (lambda: self.color_clicked("rojo")),
+                "azul": (lambda: self.color_clicked("azul")),
+                "verde": (lambda: self.color_clicked("verde")),
+                "amarillo": (lambda: self.color_clicked("amarillo"))
+            }
+        )
         return ui
 
-    def rojo_clicked(self):
-        self.respuesta.append("rojo")
-        self.sounds["rojo"].play()
+    def color_clicked(self, color: str):
+        self.respuesta.append(color)
+        if color in self.sounds:
+            self.sounds[color].play()
         self.register_time_until_pressed()
-        print("Respuesta: Rojo")
-
-    def azul_clicked(self):
-        self.respuesta.append("azul")
-        self.sounds["azul"].play()
-        self.register_time_until_pressed()
-        print("Respuesta: Azul")
-
-    def verde_clicked(self):
-        self.respuesta.append("verde")
-        self.sounds["verde"].play()
-        self.register_time_until_pressed()
-        print("Respuesta: Verde")
-
-    def amarillo_clicked(self):
-        self.respuesta.append("amarillo")
-        self.sounds["amarillo"].play()
-        self.register_time_until_pressed()
-        print("Respuesta: Amarillo")
+        print(f"Respuesta: {color.capitalize()}")
     
     def register_time_until_pressed(self):
         if self.end_question_time is None:
@@ -598,39 +617,21 @@ class SpecificWorker(GenericWorker):
 
     ####################################################################################################################################
 
-    def therapist_ui (self):
-        #Cargar interfaz
-        loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/simon_menu.ui")
-        file.open(QtCore.QFile.ReadOnly)
-        ui = loader.load(file)
-        file.close()
-
-        # Asignar las imágenes a los QLabel después de cargar la UI
-        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
-        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
-
-        ui.label_3.setPixmap(QPixmap("../../igs/logos/robolab.png"))
-        ui.label_3.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
-
-        ui.facil.clicked.connect(self.facil_clicked)
-        ui.medio.clicked.connect(self.medio_clicked)
-        ui.dificil.clicked.connect(self.dificil_clicked)
-        ui.confirmar_button.clicked.connect(self.therapist)
-
-        ui.ayuda.hide()
-        ui.ayuda_button.clicked.connect(self.ayuda_clicked)
-
-
-        # Cerrar con la x
-        if not hasattr(self, 'ui_numbers'):
-            self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 2
-        ui.installEventFilter(self)
-
-        ui.back_button.clicked.connect(self.back_clicked)
-
+    def therapist_ui(self):
+        # UI 2: menú (terapeuta)
+        ui = self.load_ui_generic(
+            UI_MENU, ui_number=2,
+            logo_paths={"label": LOGO_1, "label_3": LOGO_2},
+            botones={
+                "facil": self.facil_clicked,
+                "medio": self.medio_clicked,
+                "dificil": self.dificil_clicked,
+                "confirmar_button": self.therapist,
+            },
+            ayuda_button="ayuda_button",
+            back_button="back_button",
+            after_load=lambda u: (hasattr(u, "ayuda") and u.ayuda.hide())
+        )
         return ui
 
     def facil_clicked(self):
@@ -687,35 +688,17 @@ class SpecificWorker(GenericWorker):
         self.introduccion()
         self.procesoJuego()
 
-    def ayuda_clicked(self):
-        if self.ui2.ayuda.isVisible():  # Verifica si está visible
-            self.ui2.ayuda.hide()  # Si está visible, ocultarlo
-        else:
-            self.ui2.ayuda.show()
-
-    def back_clicked(self):
-        self.cerrar_ui(2)
-        self.gestorsg_proxy.LanzarApp()
-
     ####################################################################################################################################
-    
-    def load_check(self):
-        # Carga la interfaz desde el archivo .ui
-        loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/botonUI.ui")
-        file.open(QtCore.QFile.ReadOnly)
-        ui = loader.load(file)
-        file.close()
-        # Conectar botones a funciones
-        ui.si.clicked.connect(self.si_clicked)
-        ui.no.clicked.connect(self.no_clicked)
 
-        # Cerrar con la x
-        if not hasattr(self, 'ui_numbers'):
-            self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 3  
-        ui.installEventFilter(self) 
+    def load_check(self):
+        # UI 3: diálogo sí/no
+        ui = self.load_ui_generic(
+            UI_CHECK, ui_number=3,
+            botones={
+                "si": self.si_clicked,
+                "no": self.no_clicked,
+            }
+        )
         return ui
 
     def si_clicked(self):
@@ -733,20 +716,11 @@ class SpecificWorker(GenericWorker):
     ####################################################################################################################################
 
     def comenzar_checked(self):
-        # Carga la interfaz desde el archivo .ui
-        loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/comenzarUI.ui")
-        file.open(QtCore.QFile.ReadOnly)
-        ui = loader.load(file)
-        file.close()
-        # Conectar botones a funciones
-        ui.comenzar.clicked.connect(self.comenzar)
-       # Cerrar con la x
-        if not hasattr(self, 'ui_numbers'):
-            self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 4  
-        ui.installEventFilter(self) 
+        # UI 4: diálogo comenzar
+        ui = self.load_ui_generic(
+            UI_START, ui_number=4,
+            botones={"comenzar": self.comenzar}
+        )
         return ui
 
     def comenzar (self):
@@ -893,8 +867,8 @@ class SpecificWorker(GenericWorker):
         self.update_ui_signal.emit()
         # pass
 
-    @Slot()
-    def on_update_ui(self):
+    @QtCore.Slot()
+    def handle_update_ui(self):
         # Este código se ejecutará en el hilo principal
         if not self.ui2:
             print("Error: la interfaz de usuario no se ha cargado correctamente.")
@@ -904,6 +878,7 @@ class SpecificWorker(GenericWorker):
         self.ui2.raise_()
         self.ui2.show()
         QApplication.processEvents()
+
     # ===================================================================
     # ===================================================================
 

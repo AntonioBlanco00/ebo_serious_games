@@ -19,8 +19,6 @@
 #    along with RoboComp.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication
 from rich.console import Console
 from genericworker import *
 import interfaces as ifaces
@@ -29,14 +27,28 @@ from time import sleep
 import pandas as pd
 import time
 from datetime import datetime
-from PySide6 import QtUiTools
-from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
-from PySide6.QtCore import Qt
-import pygame
-from pynput import keyboard
-import threading
 import random
+import os, warnings
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+warnings.filterwarnings(
+    "ignore",
+    message=r"pkg_resources is deprecated as an API.*",
+    category=UserWarning,
+    module=r"pygame\.pkgdata"
+)
+import pygame
+import sys
+from PySide6 import QtUiTools
+from PySide6.QtCore import Qt, QTimer, QFile, Signal, Slot, QEvent
+from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QPixmap
 
+UI_RESP   = "../../igs/pasapalabra_respuesta.ui"
+UI_MENU   = "../../igs/pasapalabra_menu.ui"
+UI_CHECK  = "../../igs/botonUI.ui"
+UI_START  = "../../igs/comenzarUI.ui"
+LOGO_1    = "../../igs/logos/logo_euro.png"
+LOGO_2    = "../../igs/logos/robolab.png"
 
 sys.path.append('/opt/robocomp/lib')
 console = Console(highlight=False)
@@ -64,37 +76,7 @@ class SpecificWorker(GenericWorker):
             "click": pygame.mixer.Sound('src/click.wav'),
         }
 
-        self.datos = []
-        self.letras = []
-        self.preguntas = []
-        self.respuestas = []
-        self.aciertos = 0
-        self.fallos = 0
-        self.pasadas = 0
-        self.letras_pasadas = []
-        self.nombre = ""
-        self.fecha = 0
-        self.hora = 0
-        self.start_time = None
-        self.end_time = None
-        self.elapsed_time = None
-        self.rosco = ""
-        self.bd = ""
-
-        ########## DEFINICIÓN DEL DATAFRAME QUE ALMACENA LOS DATOS ##########
-        self.df = pd.DataFrame(columns=["Nombre", "Rosco", "Aciertos", "Fallos", "Pasadas", "Fecha", "Hora", "Tiempo transcurrido (min)",
-                                        "Tiempo transcurrido (seg)", "Tiempo de respuesta medio (seg)"])
-        self.resp = ""
-        self.running = False
-        self.boton = False
-        self.check = ""
-        self.letra_actual = ""
-        self.pregunta_actual = ""
-        self.start_question_time = 0
-        self.end_question_time = 0
-        self.response_time = 0
-        self.responses_times = []
-        self.media = 0
+        self.reiniciar_variables()
 
         QApplication.processEvents()
 
@@ -144,11 +126,7 @@ class SpecificWorker(GenericWorker):
         """Destructor"""
 
     def setParams(self, params):
-        # try:
-        # 	self.innermodel = InnerModel(params["InnerModelPath"])
-        # except:
-        #	traceback.print_exc()
-        #	print("Error reading config params")
+
         return True
 
     ########## FUNCIÓN PARA ENCENDER LAS LUCES LEDS ##########
@@ -160,7 +138,6 @@ class SpecificWorker(GenericWorker):
     ########## OBTIENE LOS ROSCOS ##########
     def archivo(self, archivo_json):
         """Cargar los datos desde el archivo JSON"""
-        # Donde json es una string con el nombre del json, ruta a futuro.
         self.bd = archivo_json
         with open(self.bd, 'r', encoding='utf-8') as json_file:
             self.datos = json.load(json_file)["preguntas"] # Acceder a la clave 'preguntas'
@@ -173,163 +150,164 @@ class SpecificWorker(GenericWorker):
 
     ########## PROCESO DEL JUEGO ##########
     def juego(self):
-        json_elegido = "roscos/" + self.rosco  + ".json"
+        # Carga banco de preguntas
+        json_elegido = f"roscos/{self.rosco}.json"
         self.archivo(json_elegido)
         print("Comienzo de juego")
+
+        # Mapa letra->índice para evitar búsquedas repetidas
+        idx = {l: i for i, l in enumerate(self.letras)}
+
         self.start_time = time.time()
-        letras_restantes = self.letras.copy()
 
-        while letras_restantes or self.letras_pasadas:
-            # Proceso principal de letras restantes
-            if letras_restantes:
-                for letra in letras_restantes[:]:  # Iteramos sobre una copia de la lista
-                    if not self.running:
-                        break
+        cola = self.letras[:]  # letras pendientes en esta vuelta (lista)
+        pasadas = []  # letras pasadas para la siguiente vuelta (lista)
+        in_pasadas_phase = False  # False = primera(s) vuelta(s); True = vuelta de letras pasadas
 
-                    self.resp = ""
-                    indice = self.letras.index(letra)
-                    if self.respuestas[indice].startswith(letra):
-                        self.letra_actual = f"Comienza con la letra:{letra}"
-                        self.speech_proxy.say(f"Comienza con la letra:{letra}", False)
-                        print(f'Con la letra: {letra}')
-                    else:
-                        self.letra_actual = f"Contiene la letra:{letra}"
-                        self.speech_proxy.say(f"Contiene la letra:{letra}", False)
-                        print(f'Contiene la letra: {letra}')
-
-                    self.speech_proxy.say(f"{self.preguntas[indice]}", False)
-                    print(self.preguntas[indice])
-                    respuesta_correcta = self.respuestas[indice]
-                    self.pregunta_actual = self.preguntas[indice]
-                    self.terminaHablar()
-                    self.start_question_time = time.time()
-                    self.ui.respuesta.clear()
-                    self.ui.respuesta.insertPlainText(respuesta_correcta)
-                    self.ui.show()
-                    while self.resp == "":
-                        QApplication.processEvents()
-
-                    if self.resp == "pasapalabra":
-                        self.speech_proxy.say(self.elegir_respuesta(self.bateria_pasapalabra), False)
-                        print("Has pasado esta letra.")
-                        self.set_all_LEDS_colors(255,255,0)
-                        self.emotionalmotor_proxy.expressSurprise()
-                        sleep(2)
-                        self.set_all_LEDS_colors(0, 0, 0)
-                        sleep (1)
-                        self.letras_pasadas.append(letra)
-                        self.pasadas += 1
-                        self.emotionalmotor_proxy.expressJoy()
-                        letras_restantes.remove(letra)
-                    elif self.resp == "si":
-                        self.speech_proxy.say(self.elegir_respuesta(self.bateria_aciertos), False)
-                        print("¡Respuesta correcta!")
-                        self.set_all_LEDS_colors(0,255,0)
-                        self.emotionalmotor_proxy.expressJoy()
-                        sleep(1)
-                        self.set_all_LEDS_colors(0, 0, 0)
-                        sleep (1)
-                        self.aciertos += 1
-                        self.emotionalmotor_proxy.expressJoy()
-                        letras_restantes.remove(letra)  # Eliminar la letra de letras_restantes si es correcta
-                    else:
-                        self.speech_proxy.say(f"{self.elegir_respuesta(self.bateria_fallos)} La respuesta correcta era {respuesta_correcta}", False)
-                        print(f"Respuesta incorrecta! La respuesta es {respuesta_correcta}")
-                        self.set_all_LEDS_colors(255,0,0)
-                        self.emotionalmotor_proxy.expressSadness()
-                        sleep(2)
-                        self.set_all_LEDS_colors(0,0,0)
-                        sleep (1)
-                        self.fallos += 1
-                        self.emotionalmotor_proxy.expressJoy()
-                        letras_restantes.remove(letra)  # Eliminar la letra de letras_restantes si es correcta
-
-                    self.end_question_time = time.time()
-                    self.cerrar_ui(1)
-                    self.response_time = self.end_question_time - self.start_question_time
-                    self.responses_times.append(self.response_time)
-
-            # Proceso de letras pasadas
-            elif self.letras_pasadas:
+        i = 0
+        while (i < len(cola) or pasadas) and self.running:
+            # Si terminamos la cola y hay pasadas, arrancamos la vuelta de pasadas
+            if i >= len(cola) and pasadas:
                 self.speech_proxy.say("Vamos a dar otra vuelta con las letras que pasaste.", False)
                 print("Ahora vamos a repasar las letras que pasaste.")
-                for letra in self.letras_pasadas[:]:  # Iteramos sobre una copia de la lista
-                    if not self.running:
-                        break
+                cola = pasadas
+                pasadas = []
+                in_pasadas_phase = True
+                i = 0
+                continue
 
-                    self.resp=""
-                    indice = self.letras.index(letra)
-                    if self.respuestas[indice].startswith(letra):
-                        self.speech_proxy.say(f"Comienza con la letra:{letra}", False)
-                        print(f'Con la letra: {letra}')
-                    else:
-                        self.speech_proxy.say(f"Contiene la letra:{letra}", False)
-                        print(f'Contiene la letra: {letra}')
+            # Si ya no queda nada y no hay pasadas, salimos
+            if i >= len(cola):
+                break
 
-                    pregunta = self.preguntas[indice]
-                    respuesta_correcta = self.respuestas[indice]
-                    self.speech_proxy.say(f"{pregunta}", False)
-                    print(f'Pregunta: {pregunta}')
-                    self.terminaHablar()
-                    self.ui.respuesta.clear()
-                    self.ui.respuesta.insertPlainText(respuesta_correcta)
-                    self.ui.show()
-                    self.start_question_time = time.time()
-                    while self.resp == "":
-                        QApplication.processEvents()
+            letra = cola[i]
+            j = idx[letra]
 
-                    if self.resp == "pasapalabra":
-                        self.speech_proxy.say(f"Has pasado esta letra nuevamente", False)
-                        print("Has pasado esta letra nuevamente.")
-                        self.set_all_LEDS_colors(255, 255, 0)
-                        self.emotionalmotor_proxy.expressSurprise()
-                        sleep(2)
-                        self.set_all_LEDS_colors(0, 0, 0)
-                        sleep(1)
+            # Presenta pista + pregunta
+            self._presentar_pista(j, letra)
+            correcta = self.respuestas[j]
+
+            # UI + espera
+            self._mostrar_ui_con_respuesta(correcta)
+            self._esperar_respuesta()
+            if not self.running:
+                break
+
+            # Cierra cronómetro y registra
+            self._cerrar_cronometro()
+
+            # Procesa respuesta
+            if self.resp == "pasapalabra":
+                self._feedback("pass")
+                if not in_pasadas_phase:
+                    # Primera(s) vuelta(s): se reprograma para la vuelta de pasadas
+                    pasadas.append(letra)
+                    self.letras_pasadas.append(letra)
+                    self.pasadas += 1
+                else:
+                    # En la vuelta de pasadas: se elimina definitivamente (no se vuelve a pasar)
+                    if letra in self.letras_pasadas:
                         self.letras_pasadas.remove(letra)
-                        self.emotionalmotor_proxy.expressJoy()
-                    elif self.resp == "si":
-                        self.speech_proxy.say(self.elegir_respuesta(self.bateria_aciertos), False)
-                        print("¡Respuesta correcta!")
-                        self.set_all_LEDS_colors(0, 255, 0)
-                        self.emotionalmotor_proxy.expressJoy()
-                        sleep(1)
-                        self.set_all_LEDS_colors(0, 0, 0)
-                        sleep(1)
-                        self.aciertos += 1
-                        self.pasadas -= 1
-                        self.emotionalmotor_proxy.expressJoy()
-                        self.letras_pasadas.remove(letra)  # Eliminar la letra de letras_pasadas si es incorrecta
-                    else:
-                        self.speech_proxy.say(f"{self.elegir_respuesta(self.bateria_fallos)} La respuesta correcta era {respuesta_correcta}", False)
-                        print(f"Respuesta incorrecta! La respuesta es {respuesta_correcta}")
-                        self.set_all_LEDS_colors(255, 0, 0)
-                        self.emotionalmotor_proxy.expressSadness()
-                        sleep(1)
-                        self.set_all_LEDS_colors(0, 0, 0)
-                        sleep(1)
-                        self.fallos += 1
-                        self.pasadas -= 1
-                        self.emotionalmotor_proxy.expressJoy()
-                        self.letras_pasadas.remove(letra)  # Eliminar la letra de letras_pasadas si es incorrecta
+                # En ambos casos, quitamos la letra de la cola actual y NO incrementamos i
+                del cola[i]
+                continue
 
-                    self.end_question_time = time.time()
-                    self.cerrar_ui(1)
-                    self.response_time = self.end_question_time - self.start_question_time
-                    self.responses_times.append(self.response_time)
+            elif self.resp == "si":
+                self._feedback("ok")
+                self.aciertos += 1
+                if in_pasadas_phase:
+                    # En segunda vuelta, resolver resta una pasada pendiente
+                    self.pasadas -= 1
+                    if letra in self.letras_pasadas:
+                        self.letras_pasadas.remove(letra)
+                del cola[i]
+                continue
 
+            else:
+                self._feedback("ko", correcta=correcta)
+                self.fallos += 1
+                if in_pasadas_phase:
+                    self.pasadas -= 1
+                    if letra in self.letras_pasadas:
+                        self.letras_pasadas.remove(letra)
+                del cola[i]
+                continue
+
+        # Fin de juego
         self.end_time = time.time()
-        self.elapsed_time = self.end_time - self.start_time  # Tiempo en segundos
-        self.media = sum(self.responses_times) / len(self.responses_times)
+        self.elapsed_time = self.end_time - self.start_time
+        self.media = (sum(self.responses_times) / len(self.responses_times)) if self.responses_times else 0.0
         self.running = False
-        # Resultados finales
+
         self.speech_proxy.say("Fin del juego. ¡Lo has hecho genial!:", False)
-        self.agregar_resultados(self.nombre, self.rosco, self.aciertos, self.fallos, self.pasadas, self.fecha,
-                                self.hora, (self.elapsed_time//60), (self.elapsed_time%60), self.media)
+        self.agregar_resultados(
+            self.nombre, self.rosco, self.aciertos, self.fallos, self.pasadas, self.fecha, self.hora,
+            (self.elapsed_time // 60), (self.elapsed_time % 60), self.media
+        )
         self.guardar_resultados()
-        # REINICIAR TODAS LAS VARIABLES
         self.reiniciar_variables()
         self.gestorsg_proxy.LanzarApp()
+
+    def _presentar_pista(self, i: int, letra: str):
+        if self.respuestas[i].startswith(letra):
+            self.letra_actual = f"Comienza con la letra:{letra}"
+            self.speech_proxy.say(self.letra_actual, False)
+            print(f"Con la letra: {letra}")
+        else:
+            self.letra_actual = f"Contiene la letra:{letra}"
+            self.speech_proxy.say(self.letra_actual, False)
+            print(f"Contiene la letra: {letra}")
+        self.pregunta_actual = self.preguntas[i]
+        self.speech_proxy.say(self.pregunta_actual, False)
+        print(self.pregunta_actual)
+        self.terminaHablar()
+
+    def _mostrar_ui_con_respuesta(self, respuesta_correcta: str):
+        self.start_question_time = time.time()
+        self.ui.respuesta.clear()
+        self.ui.respuesta.insertPlainText(respuesta_correcta)
+        self.ui.show()
+
+    def _esperar_respuesta(self):
+        self.resp = ""
+        while self.resp == "" and self.running:
+            QApplication.processEvents()
+
+    def _cerrar_cronometro(self):
+        self.end_question_time = time.time()
+        self.cerrar_ui(1)
+        self.response_time = self.end_question_time - self.start_question_time
+        self.responses_times.append(self.response_time)
+
+    def _feedback(self, tipo: str, correcta: str | None = None):
+        if tipo == "pass":
+            self.speech_proxy.say(self.elegir_respuesta(self.bateria_pasapalabra), False)
+            print("Has pasado esta letra.")
+            self.set_all_LEDS_colors(255, 255, 0);
+            self.emotionalmotor_proxy.expressSurprise()
+            sleep(2);
+            self.set_all_LEDS_colors(0, 0, 0);
+            sleep(1);
+            self.emotionalmotor_proxy.expressJoy()
+        elif tipo == "ok":
+            self.speech_proxy.say(self.elegir_respuesta(self.bateria_aciertos), False)
+            print("¡Respuesta correcta!")
+            self.set_all_LEDS_colors(0, 255, 0);
+            self.emotionalmotor_proxy.expressJoy()
+            sleep(1);
+            self.set_all_LEDS_colors(0, 0, 0);
+            sleep(1);
+            self.emotionalmotor_proxy.expressJoy()
+        elif tipo == "ko":
+            self.speech_proxy.say(f"{self.elegir_respuesta(self.bateria_fallos)} La respuesta correcta era {correcta}",
+                                  False)
+            print(f"Respuesta incorrecta! La respuesta es {correcta}")
+            self.set_all_LEDS_colors(255, 0, 0);
+            self.emotionalmotor_proxy.expressSadness()
+            sleep(2);
+            self.set_all_LEDS_colors(0, 0, 0);
+            sleep(1);
+            self.emotionalmotor_proxy.expressJoy()
 
     def reiniciar_variables(self):
         self.datos = []
@@ -473,38 +451,77 @@ class SpecificWorker(GenericWorker):
 
     ##########################################################################################
 
-    def load_ui(self):
-        # Carga la interfaz desde el archivo .ui
+    def load_ui_generic(self, ui_path, ui_number, *, logo_paths=None, botones=None,
+                        ayuda_button=None, back_button=None, after_load=None):
         loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/pasapalabra_respuesta.ui")
-        file.open(QtCore.QFile.ReadOnly)
+        file = QFile(ui_path)
+        file.open(QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
 
-        # Asignar las imágenes a los QLabel después de cargar la UI
-        ui.label_2.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
-        ui.label_2.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
+        # Logos
+        if logo_paths:
+            for label_name, path in logo_paths.items():
+                label = getattr(ui, label_name, None)
+                if label:
+                    label.setPixmap(QPixmap(path))
+                    label.setScaledContents(True)
 
-        ui.label_3.setPixmap(QPixmap("../../igs/logos/robolab.png"))
-        ui.label_3.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
+        # Botones
+        if botones:
+            for btn_name, func in botones.items():
+                btn = getattr(ui, btn_name, None)
+                if btn:
+                    btn.clicked.connect(func)
 
-        # Conectar botones a funciones
-        ui.correcta.clicked.connect(self.correcta_clicked)
-        ui.incorrecta.clicked.connect(self.incorrecta_clicked)
-        ui.pasapalabra.clicked.connect(self.pasapalabra_clicked)
-        ui.repetir.clicked.connect(self.repetir_clicked)
+        # Ayuda
+        if ayuda_button and hasattr(ui, ayuda_button):
+            getattr(ui, ayuda_button).clicked.connect(lambda: self.toggle_ayuda(ui))
+            if hasattr(ui, "ayuda"):
+                ui.ayuda.hide()
 
-        ui.ayuda.hide()
-        ui.ayuda_button.clicked.connect(self.ayuda_clicked)
+        # Back
+        if back_button and hasattr(ui, back_button):
+            getattr(ui, back_button).clicked.connect(lambda: self.back_clicked_ui(ui_number))
 
-        ui.back_button.clicked.connect(self.back_clicked)
-        
-        # Cerrar con la x
+        # Hook post-carga
+        if callable(after_load):
+            after_load(ui)
+
+        # Registrar para eventFilter
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 1  
-        ui.installEventFilter(self) 
+        self.ui_numbers[ui] = ui_number
+        ui.installEventFilter(self)
+        return ui
+
+    @Slot()
+    def toggle_ayuda(self, ui):
+        if hasattr(ui, "ayuda"):
+            ui.ayuda.setVisible(not ui.ayuda.isVisible())
+
+    @Slot()
+    def back_clicked_ui(self, ui_number):
+        self.cerrar_ui(ui_number)
+        self.gestorsg_proxy.LanzarApp()
+
+    ##########################################################################################
+
+    def load_ui(self):
+        # UI 1: respuesta/corrección
+        ui = self.load_ui_generic(
+            UI_RESP, ui_number=1,
+            logo_paths={"label_2": LOGO_1, "label_3": LOGO_2},
+            botones={
+                "correcta": self.correcta_clicked,
+                "incorrecta": self.incorrecta_clicked,
+                "pasapalabra": self.pasapalabra_clicked,
+                "repetir": self.repetir_clicked,
+            },
+            ayuda_button="ayuda_button",
+            back_button="back_button",
+            after_load=lambda u: (hasattr(u, "ayuda") and u.ayuda.hide())
+        )
         return ui
 
     def correcta_clicked(self):
@@ -538,38 +555,16 @@ class SpecificWorker(GenericWorker):
 
     ##########################################################################################
 
-    def therapist_ui (self):
-        # self.start_listener_thread()
+    def therapist_ui(self):
         self.running = True
-
-        #Cargar interfaz
-        loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/pasapalabra_menu.ui")
-        file.open(QtCore.QFile.ReadOnly)
-        ui = loader.load(file)
-        file.close()
-
-        # Asignar las imágenes a los QLabel después de cargar la UI
-        ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
-        ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
-
-        ui.label_2.setPixmap(QPixmap("../../igs/logos/robolab.png"))
-        ui.label_2.setScaledContents(True)  # Ajusta la imagen a los límites del QLabel
-
-        self.configure_combobox(ui, "roscos")
-        ui.confirmar_button.clicked.connect(self.therapist)
-
-        ui.ayuda.hide()
-        ui.ayuda_button.clicked.connect(self.ayuda_clicked2)
-
-        ui.back_button.clicked.connect(self.back_clicked2)
-        
-        # Cerrar con la x
-        if not hasattr(self, 'ui_numbers'):
-            self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 2  
-        ui.installEventFilter(self) 
+        ui = self.load_ui_generic(
+            UI_MENU, ui_number=2,
+            logo_paths={"label": LOGO_1, "label_2": LOGO_2},
+            botones={"confirmar_button": self.therapist},
+            ayuda_button="ayuda_button",
+            back_button="back_button",
+            after_load=lambda u: (self.configure_combobox(u, "roscos"))
+        )
         return ui
 
     def therapist(self):
@@ -620,48 +615,13 @@ class SpecificWorker(GenericWorker):
         else:
             print("No se encontró el QComboBox")
 
-    def ayuda_clicked(self):
-        print("BOTON AYUDA PULSADO")
-        if self.ui.ayuda.isVisible():  # Verifica si está visible
-            self.ui.ayuda.hide()  # Si está visible, ocultarlo
-        else:
-            self.ui.ayuda.show()
-
-    def ayuda_clicked2(self):
-        print("BOTON AYUDA PULSADO")
-        if self.ui2.ayuda.isVisible():  # Verifica si está visible
-            self.ui2.ayuda.hide()  # Si está visible, ocultarlo
-        else:
-            self.ui2.ayuda.show()
-
-    def back_clicked(self):
-        self.cerrar_ui(1)
-        self.gestorsg_proxy.LanzarApp()
-
-    def back_clicked2(self):
-        self.cerrar_ui(2)
-        self.gestorsg_proxy.LanzarApp()
-
     ##########################################################################################
 
     def load_check(self):
-        # Carga la interfaz desde el archivo .ui
-        loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/botonUI.ui")
-        file.open(QtCore.QFile.ReadOnly)
-        ui = loader.load(file)
-        file.close()
-
-        # Conectar botones a funciones
-        ui.si.clicked.connect(self.si_clicked)
-        ui.no.clicked.connect(self.no_clicked)
-        
-        # Cerrar con la x
-        if not hasattr(self, 'ui_numbers'):
-            self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 3
-        ui.installEventFilter(self) 
+        ui = self.load_ui_generic(
+            UI_CHECK, ui_number=3,
+            botones={"si": self.si_clicked, "no": self.no_clicked}
+        )
         return ui
 
     def si_clicked(self):
@@ -679,22 +639,10 @@ class SpecificWorker(GenericWorker):
     ##########################################################################################
 
     def comenzar_checked(self):
-        # Carga la interfaz desde el archivo .ui
-        loader = QtUiTools.QUiLoader()
-        file = QtCore.QFile("../../igs/comenzarUI.ui")
-        file.open(QtCore.QFile.ReadOnly)
-        ui = loader.load(file)
-        file.close()
-
-        # Conectar botones a funciones
-        ui.comenzar.clicked.connect(self.comenzar)
-        
-        # Cerrar con la x
-        if not hasattr(self, 'ui_numbers'):
-            self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 4  
-        ui.installEventFilter(self) 
+        ui = self.load_ui_generic(
+            UI_START, ui_number=4,
+            botones={"comenzar": self.comenzar}
+        )
         return ui
 
     def comenzar (self):
@@ -764,12 +712,14 @@ class SpecificWorker(GenericWorker):
     #
     def Pasapalabra_StartGame(self):
         self.boton = False
-        while not self.boton:
-            self.boton = True
-            self.centrar_ventana(self.ui2)
-            self.ui2.show()
+        self.centrar_ventana(self.ui2)
+        self.ui2.show()
+
+        # Espera activa suave a que therapist() ponga self.boton=True
+        while not self.boton and self.ui2.isVisible():
             QApplication.processEvents()
-            sleep(1)
+            time.sleep(0.05)
+
         print("Juego terminado o ventana cerrada")
 
     def centrar_ventana(self, ventana):

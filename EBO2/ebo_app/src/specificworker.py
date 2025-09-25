@@ -108,6 +108,15 @@ class SpecificWorker(GenericWorker):
         self.ui.GPT_mode.clicked.connect(self.activar_gpt)
 
         #Botones de emociones
+        self._emociones = {
+            "Feliz": self.ebomoods_proxy.expressJoy,
+            "Asco": self.ebomoods_proxy.expressDisgust,
+            "Sorpresa": self.ebomoods_proxy.expressSurprise,
+            "Triste": self.ebomoods_proxy.expressSadness,
+            "Enfado": self.ebomoods_proxy.expressAnger,
+            "Miedo": self.ebomoods_proxy.expressFear,
+        }
+
         self.ui.feliz.clicked.connect(lambda: self.emotion_clicked("Feliz"))
         self.ui.asco.clicked.connect(lambda: self.emotion_clicked("Asco"))
         self.ui.sorpresa.clicked.connect(lambda: self.emotion_clicked("Sorpresa"))
@@ -116,6 +125,14 @@ class SpecificWorker(GenericWorker):
         self.ui.miedo.clicked.connect(lambda: self.emotion_clicked("Miedo"))
 
         #Botones de movimiento
+        self._movimientos = {
+            "Adelante": (0, 50),
+            "Izquierda": (-50, 0),
+            "Derecha": (50, 0),
+            "Atras": (0, -50),
+            "Quieto": (0, 0),
+        }
+
         self.ui.adelante.clicked.connect(lambda: self.move_clicked("Adelante"))
         self.ui.izquierda.clicked.connect(lambda: self.move_clicked("Izquierda"))
         self.ui.derecha.clicked.connect(lambda: self.move_clicked("Derecha"))
@@ -125,32 +142,29 @@ class SpecificWorker(GenericWorker):
         # Apagar LEDs
         self.ui.leds_off.clicked.connect(self.apagar_leds)
 
-        print('APP INICIADA')
-
+        console.print("[bold green]APP INICIADA[/bold green]")
 
     def __del__(self):
         """Destructor"""
 
     def setParams(self, params):
-        # try:
-        #	self.innermodel = InnerModel(params["InnerModelPath"])
-        # except:
-        #	traceback.print_exc()
-        #	print("Error reading config params")
+
         return True
 
 
     @QtCore.Slot()
     def compute(self):
-        # print('SpecificWorker.compute...')
-
 
         return True
 
     def set_all_LEDS_colors(self, red=0, green=0, blue=0, white=0):
-        pixel_array = {i: ifaces.RoboCompLEDArray.Pixel(red=red, green=green, blue=blue, white=white) for i in
-                       range(self.NUM_LEDS)}
-        self.ledarray_proxy.setLEDArray(pixel_array)
+        try:
+            pixel = ifaces.RoboCompLEDArray.Pixel(red=red, green=green, blue=blue, white=white)
+            pixel_array = {i: pixel for i in range(self.NUM_LEDS)}
+            self.ledarray_proxy.setLEDArray(pixel_array)
+        except Exception as e:
+            traceback.print_exc()
+            console.print(f"[bold red]Error[/bold red] al actualizar LEDs: {e}")
 
     def apagar_leds(self):
         self.set_all_LEDS_colors(red=0, green=0, blue=0, white=0)
@@ -179,71 +193,99 @@ class SpecificWorker(GenericWorker):
             self.gpt_proxy.startChat()
 
     def actualizar_interfaz(self):
-        # Cambiar el texto del botón GPT_mode
+        """Activa el modo GPT en la UI y reconecta señales de forma segura."""
         self.ui.GPT_mode.setText("Salir modo GPT")
-        self.ui.textEdit.clear()  # Borrar el contenido del QTextEdit sin perder formato
+        self.ui.textEdit.clear()
         self.ui.textEdit.insertPlainText("Escribe aquí lo que decir a EBO")
-
-        # Hacer visible el cuadro de texto `texto_gpt`
         self.ui.texto_gpt.setVisible(True)
 
-        # Cambiar la función de pushButton
-        self.ui.pushButton.clicked.disconnect()  # Desconectar la acción anterior
-        self.ui.pushButton.clicked.connect(self.enviar_gpt)  # Conectar a la nueva función
+        # pushButton: pasar de TTS → GPT
+        try:
+            self.ui.pushButton.clicked.disconnect()
+        except TypeError:
+            pass
+        self.ui.pushButton.clicked.connect(self.enviar_gpt)
 
-        # Cambiar la función de modoGPT
-        self.ui.GPT_mode.clicked.disconnect()
+        # GPT_mode: pasar de activar → desactivar
+        try:
+            self.ui.GPT_mode.clicked.disconnect()
+        except TypeError:
+            pass
         self.ui.GPT_mode.clicked.connect(self.desactivar_gpt)
 
-        # Cambiar el texto de plainTextEdit (o cualquier otro cambio que desees)
+        # Limpia el input
         self.ui.plainTextEdit.clear()
 
     def regenerar_interfaz(self):
+        """Vuelve al modo TTS normal y reconecta señales de forma segura."""
         self.ui.GPT_mode.setText("Entrar modo GPT")
         self.ui.textEdit.clear()
         self.ui.textEdit.setPlainText("Escribe aquí lo que quieres que diga EBO")
-
         self.ui.texto_gpt.setVisible(False)
 
-        # Cambiar la función de pushButton
-        self.ui.pushButton.clicked.disconnect()  # Desconectar la acción anterior
-        self.ui.pushButton.clicked.connect(self.enviar_tts)  # Conectar a la nueva función
+        # pushButton: pasar de GPT → TTS
+        try:
+            self.ui.pushButton.clicked.disconnect()
+        except TypeError:
+            pass
+        self.ui.pushButton.clicked.connect(self.enviar_tts)
 
-        # Cambiar la función de modoGPT
-        self.ui.GPT_mode.clicked.disconnect()
+        # GPT_mode: pasar de desactivar → activar
+        try:
+            self.ui.GPT_mode.clicked.disconnect()
+        except TypeError:
+            pass
         self.ui.GPT_mode.clicked.connect(self.activar_gpt)
 
-        # Cambiar el texto de plainTextEdit (o cualquier otro cambio que desees)
+        # Limpia el input
         self.ui.plainTextEdit.clear()
-
 
     def enviar_gpt(self):
+        """Envía el texto actual al chat GPT y limpia el campo."""
         mensaje = self.ui.plainTextEdit.toPlainText()
         self.ui.plainTextEdit.clear()
-        self.gpt_proxy.continueChat(mensaje)
-
+        try:
+            self.gpt_proxy.continueChat(mensaje)
+        except Exception as e:
+            traceback.print_exc()
+            console.print(f"[bold red]Error[/bold red] al enviar mensaje a GPT: {e}")
 
     def desactivar_gpt(self):
-        self.gpt_proxy.continueChat("salir")
+        """Sale del modo GPT y restaura la interfaz."""
+        try:
+            self.gpt_proxy.continueChat("03827857295769204")
+        except Exception as e:
+            traceback.print_exc()
+            console.print(f"[bold red]Error[/bold red] al salir de GPT: {e}")
         self.regenerar_interfaz()
-        pass
 
     def eventFilter(self, source, event):
-        """Detectar si se presionó Enter en el plainTextEdit"""
+        """Detecta Enter en el plainTextEdit y envía según modo activo."""
         if source is self.ui.plainTextEdit and event.type() == QEvent.KeyPress:
-            if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
-                if self.ui.texto_gpt.isVisible():  # Puedes usar otra condición para verificar el modo GPT
+            if event.key() in (Qt.Key_Enter, Qt.Key_Return):
+                if self.ui.texto_gpt.isVisible():
                     self.enviar_gpt()
                 else:
                     self.enviar_tts()
-                return True  # Evita que el evento de tecla se propague más
+                return True  # Consumimos el evento
         return super().eventFilter(source, event)
 
     def enviar_tts(self):
-        self.emotionalmotor_proxy.expressJoy()
-        texto = self.ui.plainTextEdit.toPlainText()
-        print("Texto enviado:", texto)
+        """Envía el texto a TTS; intenta animar alegría y muestra mensajes claros."""
+        try:
+            self.emotionalmotor_proxy.expressJoy()
+        except Exception as e:
+            traceback.print_exc()
+            console.print(f"[bold yellow]Aviso[/bold yellow]: no se pudo expresar alegría: {e}")
+
+        texto = self.ui.plainTextEdit.toPlainText().strip()
+        if not texto:
+            console.print("[bold yellow]Aviso[/bold yellow]: no hay texto para enviar a TTS.")
+            return
+
+        console.print(f"Texto enviado a TTS: {texto}")
         self.ui.plainTextEdit.clear()
+
         try:
             self.speech_proxy.say(texto, False)
         except Exception as e:
@@ -252,42 +294,35 @@ class SpecificWorker(GenericWorker):
 
     def emotion_clicked(self, emo):
         try:
-            if emo == "Feliz":
-                self.ebomoods_proxy.expressJoy()
-            elif emo == "Asco":
-                self.ebomoods_proxy.expressDisgust()
-            elif emo == "Sorpresa":
-                self.ebomoods_proxy.expressSurprise()
-            elif emo == "Triste":
-                self.ebomoods_proxy.expressSadness()
-            elif emo == "Enfado":
-                self.ebomoods_proxy.expressAnger()
-            elif emo == "Miedo":
-                self.ebomoods_proxy.expressFear()
-
+            accion = self._emociones.get(emo)
+            if accion:
+                accion()
+            else:
+                console.print(f"[bold yellow]Emoción desconocida:[/bold yellow] {emo}")
         except Exception as e:
             traceback.print_exc()
             console.print(f"[bold red]Error[/bold red] al cambiar emoción: {e}")
 
     def turn(self, duration: float, angular_speed: float):
-        self.differentialrobot_proxy.setSpeedBase(0, angular_speed)
+        """Gira durante `duration` segundos a velocidad angular `angular_speed`."""
+        self._set_base_speed(0, angular_speed)
         time.sleep(duration)
-        self.differentialrobot_proxy.stopBase()
+        try:
+            self.differentialrobot_proxy.stopBase()
+        except Exception:
+            # Fallback para drivers que no implementan stopBase
+            self._set_base_speed(0, 0)
+
+    def _set_base_speed(self, linear, angular):
+        self.differentialrobot_proxy.setSpeedBase(linear, angular)
 
     def move_clicked(self, mov):
         try:
-            if mov == "Adelante":
-                self.differentialrobot_proxy.setSpeedBase(0, 50)
-            elif mov == "Izquierda":
-                self.differentialrobot_proxy.setSpeedBase(-50, 0)
-                # self.turn(2.05 / 4, -(math.pi / 9))
-            elif mov == "Derecha":
-                self.differentialrobot_proxy.setSpeedBase(50, 0)
-                # self.turn(2.05 / 4, math.pi / 9)
-            elif mov == "Atras":
-                self.differentialrobot_proxy.setSpeedBase(0, -50)
-            else:
-                self.differentialrobot_proxy.setSpeedBase(0, 0)
+            v = self._movimientos.get(mov)
+            if v is None:
+                console.print(f"[bold yellow]Movimiento desconocido:[/bold yellow] {mov}")
+                return
+            self._set_base_speed(*v)
         except Exception as e:
             traceback.print_exc()
             console.print(f"[bold red]Error[/bold red] al mover el robot: {e}")

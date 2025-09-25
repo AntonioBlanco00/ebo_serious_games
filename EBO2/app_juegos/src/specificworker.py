@@ -19,16 +19,15 @@
 #    along with RoboComp.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from PySide6 import QtCore, QtUiTools
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QMessageBox
-from PySide6 import QtUiTools
 from rich.console import Console
-from genericworker import *
+from genericworker import GenericWorker
 import os
-from time import sleep
-import interfaces as ifaces
 import subprocess
+import sys
 from config_ips import lanzar_gui_configuracion
 
 sys.path.append('/opt/robocomp/lib')
@@ -63,20 +62,12 @@ class SpecificWorker(GenericWorker):
         self.ip = params["ip"]
         self.ui = self.v_principal()
         self.GestorSG_LanzarApp()
-
-        # try:
-        #	self.innermodel = InnerModel(params["InnerModelPath"])
-        # except:
-        #	traceback.print_exc()
-        #	print("Error reading config params")
         return True
 
 
     @QtCore.Slot()
     def compute(self):
-        # Verificamos el estado actual y lo comparamos con el último impreso
         if self.juego_seleccionado is False and self.ui.isVisible() is False:
-            # self.GestorSG_LanzarApp()
             estado_actual = "Relanzando APP"
         elif self.juego_seleccionado is True and self.ui.isVisible() is False:
             estado_actual = "Juego en Curso"
@@ -104,7 +95,7 @@ class SpecificWorker(GenericWorker):
         file.open(QtCore.QFile.ReadOnly)
         ui = loader.load(file)
         file.close()
-	
+
 	    # Asignar las imágenes a los QLabel después de cargar la UI
         ui.label.setPixmap(QPixmap("../../igs/logos/logo_euro.png"))
         ui.label.setScaledContents(True)  # Asegúrate de que la imagen se ajuste al QLabel
@@ -128,58 +119,36 @@ class SpecificWorker(GenericWorker):
         # Asegurar que el diccionario de UIs existe
         if not hasattr(self, 'ui_numbers'):
             self.ui_numbers = {}
-            
-        self.ui_numbers[ui] = 1  
-        ui.installEventFilter(self) 
+
+        self.ui_numbers[ui] = 1
+        ui.installEventFilter(self)
 
         return ui
 
+    def _launch_game(self, proxy_attr: str) -> None:
+        if self.ebo_listo:
+            # Desactivamos y activamos el eventfilter antes y después de cerrar la ventana para que no se raye
+            self.ui.removeEventFilter(self)
+            self.ui.close()
+            self.ui.installEventFilter(self)
+
+            self.juego_seleccionado = True
+            getattr(self, proxy_attr).StartGame()
+        else:
+            QMessageBox.warning(
+                self.ui,  # parent
+                "Advertencia",  # título de la ventana
+                "Por favor, configura la IP de ebo."  # mensaje
+            )
 
     def story_clicked(self):
-        if self.ebo_listo:
-            self.ui.removeEventFilter(self) # Desactivamos y activamos el eventfilter antes y despues de cerrar la ventana para que no se raye
-            self.ui.close()
-            self.ui.installEventFilter(self)
-
-            self.juego_seleccionado = True
-            self.storytelling_proxy.StartGame()
-        else:
-            QMessageBox.warning(
-                self.ui,  # parent
-                "Advertencia",  # título de la ventana
-                "Por favor, configura la IP de ebo."  # mensaje
-            )
+        self._launch_game("storytelling_proxy")
 
     def simon_clicked(self):
-        if self.ebo_listo:
-            self.ui.removeEventFilter(self)
-            self.ui.close()
-            self.ui.installEventFilter(self)
-
-            self.juego_seleccionado = True
-            self.juegosimonsay_proxy.StartGame()
-        else:
-            QMessageBox.warning(
-                self.ui,  # parent
-                "Advertencia",  # título de la ventana
-                "Por favor, configura la IP de ebo."  # mensaje
-            )
+        self._launch_game("juegosimonsay_proxy")
 
     def pasapalabra_clicked(self):
-        if self.ebo_listo:
-            self.ui.removeEventFilter(self)
-            self.ui.close()
-            self.ui.installEventFilter(self)
-
-            self.juego_seleccionado = True
-            self.pasapalabra_proxy.StartGame()
-        else:
-            QMessageBox.warning(
-                self.ui,  # parent
-                "Advertencia",  # título de la ventana
-                "Por favor, configura la IP de ebo."  # mensaje
-            )
-
+        self._launch_game("pasapalabra_proxy")
 
     def ayuda_clicked(self):
         if self.ui.ayuda.isVisible():  # Verifica si está visible
@@ -218,46 +187,58 @@ class SpecificWorker(GenericWorker):
         print("COMPROBANDO PING")
         try:
             resultado = subprocess.run(
-                ["ping", "-c", "1", self.ip],  # Linux/Mac
+                ["ping", "-c", "1", "-W", "1", self.ip],
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stderr=subprocess.DEVNULL,
+                timeout=2
             )
             if resultado.returncode == 0:
-                indicador.setStyleSheet("background-color: green; border: 1px solid black;")
+                self._set_indicator_color(indicador, "green")
                 self.ebo_listo = True
             else:
-                indicador.setStyleSheet("background-color: red; border: 1px solid black;")
+                self._set_indicator_color(indicador, "red")
                 self.ebo_listo = False
+        except subprocess.TimeoutExpired:
+            # Conservador: tratar como fallo sin imprimir mensajes adicionales
+            self._set_indicator_color(indicador, "red")
+            self.ebo_listo = False
         except Exception:
-            indicador.setStyleSheet("background-color: red; border: 1px solid black;")
+            self._set_indicator_color(indicador, "red")
+            self.ebo_listo = False
+
+    def _set_indicator_color(self, indicador: QFrame, color: str):
+        indicador.setStyleSheet(f"background-color: {color}; border: 1px solid black;")
 
         ####################################################################################################################################
-    
+
     def eventFilter(self, obj, event):
         """ Captura eventos de la UI """
-        
-        # Obtener el número de UI asociado al objeto
         ui_number = self.ui_numbers.get(obj, None)
 
         if ui_number is not None and event.type() == QtCore.QEvent.Close:
             target_ui = self.ui if ui_number == 1 else getattr(self, f'ui{ui_number}', None)
-            
+
             if obj == target_ui:
                 respuesta = QMessageBox.question(
-                    target_ui, "Cerrar", f"¿Estás seguro de que quieres cerrar los juegos?",
+                    target_ui, "Cerrar", "¿Estás seguro de que quieres cerrar los juegos?",
                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No
                 )
                 if respuesta == QMessageBox.Yes:
                     print(f"Ventana {ui_number} cerrada por el usuario.")
-                    subprocess.run(["python3", "../reiniciar.py"])
+                    # Ejecutar reinicio con manejo de errores conservador
+                    try:
+                        subprocess.run(["python3", "../reiniciar.py"], check=False)
+                    except FileNotFoundError:
+                        print("[ERROR] No se encontró el script ../reiniciar.py")
+                    except Exception as e:
+                        print(f"[ERROR] Falló la ejecución de reiniciar.py: {e}")
                     return False  # Permitir el cierre
                 else:
                     print(f"Cierre de la ventana {ui_number} cancelado.")
                     event.ignore()  # Bloquear el cierre
-                    return True  # **DETENER la propagación del evento para que no se cierre**
+                    return True  # Detener la propagación del evento
 
         return False  # Propaga otros eventos normalmente
-
 
     ####################################################################################################################################
 
@@ -273,7 +254,6 @@ class SpecificWorker(GenericWorker):
         self.ui.show()
         QApplication.processEvents()
         pass
-
 
 
     def centrar_ventana(self, ventana):
