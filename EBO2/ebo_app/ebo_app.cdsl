@@ -4,12 +4,13 @@ import "EmotionalMotor.idsl";
 import "Speech.idsl";
 import "EboMoods.idsl";
 import "LEDArray.idsl";
+import "EboASR.idsl";
 
 Component ebo_app
 {
     Communications
     {
-	requires GPT,DifferentialRobot,EmotionalMotor,Speech,EboMoods,LEDArray;
+	requires GPT,DifferentialRobot,EmotionalMotor,Speech,EboMoods,LEDArray,EboASR;
     };
     language python;
     gui Qt(QWidget);

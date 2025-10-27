@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #
-#    Copyright (C) 2024 by YOUR NAME HERE
+#    Copyright (C) 2025 by YOUR NAME HERE
 #
 #    This file is part of RoboComp
 #
@@ -89,5 +89,5 @@ if __name__ == '__main__':
 
     interface_manager.set_default_hanlder(worker)
     signal.signal(signal.SIGINT, sigint_handler)
-    app.exec()
+    app.exec_()
     interface_manager.destroy()

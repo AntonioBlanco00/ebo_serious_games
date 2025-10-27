@@ -19,6 +19,7 @@
 #    along with RoboComp.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from PySide6 import QtUiTools
 from PySide6.QtCore import QTimer, Qt, QEvent
 from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton
 from rich.console import Console
@@ -26,7 +27,10 @@ from genericworker import *
 import interfaces as ifaces
 import traceback
 import time
+import threading  # Necesario para ejecutar el bucle en segundo plano
 import math
+
+UI_TEST = "src/TEST.ui"
 
 sys.path.append('/opt/robocomp/lib')
 console = Console(highlight=False)
@@ -57,6 +61,7 @@ class JuegoSelector(QDialog):
         self.juego_combo.addItem("Conversation_Test")
         self.juego_combo.addItem("De_charla_con_EBO")
         self.juego_combo.addItem("Colegios")
+        self.juego_combo.addItem("Ebo_autonomo_test")
         layout.addWidget(self.juego_combo)
 
         # Etiqueta para el mensaje
@@ -79,6 +84,8 @@ class JuegoSelector(QDialog):
         # Establecer el layout del widget
         self.setLayout(layout)
 
+        self.autonomo = False
+
     def aceptar(self):
         # Al hacer clic en Aceptar, almacenamos los valores seleccionados
         self.juego_seleccionado = self.juego_combo.currentText()
@@ -98,7 +105,11 @@ class SpecificWorker(GenericWorker):
             self.timer.start(self.Period)
         self.ui.texto_gpt.setVisible(False)
 
-        #Botón para hablar
+        # Inicializar el lock de ASR de forma segura
+        self._asr_lock = getattr(self, "_asr_lock", threading.Lock())
+        self.autonomo_thread = None  # Inicializar el hilo
+
+        # Botón para hablar
         self.ui.pushButton.clicked.connect(self.enviar_tts)
 
         # Agregar evento de teclado para detectar Enter
@@ -107,7 +118,7 @@ class SpecificWorker(GenericWorker):
         # Botón para el modo chatGPT
         self.ui.GPT_mode.clicked.connect(self.activar_gpt)
 
-        #Botones de emociones
+        # Botones de emociones
         self._emociones = {
             "Feliz": self.ebomoods_proxy.expressJoy,
             "Asco": self.ebomoods_proxy.expressDisgust,
@@ -124,7 +135,7 @@ class SpecificWorker(GenericWorker):
         self.ui.enfado.clicked.connect(lambda: self.emotion_clicked("Enfado"))
         self.ui.miedo.clicked.connect(lambda: self.emotion_clicked("Miedo"))
 
-        #Botones de movimiento
+        # Botones de movimiento
         self._movimientos = {
             "Adelante": (0, 50),
             "Izquierda": (-50, 0),
@@ -151,7 +162,6 @@ class SpecificWorker(GenericWorker):
 
         return True
 
-
     @QtCore.Slot()
     def compute(self):
 
@@ -169,6 +179,35 @@ class SpecificWorker(GenericWorker):
     def apagar_leds(self):
         self.set_all_LEDS_colors(red=0, green=0, blue=0, white=0)
 
+    def _iniciar_ebo_autonomo_thread(self):
+        """MÉTODO AÑADIDO: Ejecuta la lógica de inicio y el bucle en un hilo separado."""
+
+        # 1. Asegurarse de que el lock existe (aunque ya se hizo en __init__)
+        self._asr_lock = getattr(self, "_asr_lock", threading.Lock())
+
+        # 2. ADQUIRIR el lock para evitar que el ASR escuche la respuesta de startChat
+        self._asr_lock.acquire()
+        try:
+            self.gpt_proxy.startChat()
+            time.sleep(2)  # Pausa inicial para que la respuesta de TTS comience
+
+            # 3. Esperar a que termine de hablar, mientras el lock está activo
+            ok = self.wait_for_speech_cycle_forgiving(
+                wait_for_start_timeout=5,
+                wait_for_end_timeout=120.0,
+                poll_interval=0.05,
+                post_silence_grace=0.5,
+                fallback_wait_after_no_start=0.8
+            )
+            if not ok:
+                time.sleep(1.0)
+        finally:
+            # 4. LIBERAR el lock después de que el robot haya terminado de hablar.
+            self._asr_lock.release()
+
+        # 5. Iniciar el bucle autónomo (que se queda bloqueado en este hilo secundario)
+        self.ebo_autonomo_test()
+
     def activar_gpt(self):
         print("ACTIVAR CHATGPT PULSADO")
 
@@ -179,18 +218,34 @@ class SpecificWorker(GenericWorker):
         if self.juego_selector.exec() == QDialog.Accepted:
             # Al aceptar, obtenemos los valores seleccionados
             self.juego_seleccionado = self.juego_selector.juego_seleccionado
+            print("JUEGO SELECCIONADO HA SIDO::::: ", self.juego_seleccionado)
             self.mensaje_inicial = self.juego_selector.mensaje_inicial
 
-            # Actualizamos la interfaz principal con los nuevos valores
-            self.actualizar_interfaz()
-
-            # Aquí, podrías almacenar la variable juego_seleccionado para usarla en otros lugares
-            print(f"Juego seleccionado: {self.juego_seleccionado}")
-            print(f"Mensaje inicial: {self.mensaje_inicial}")
-
-            print(f"\nIniciando el juego: {self.juego_seleccionado} para el usuario: {self.mensaje_inicial}...\n")
+            print(f"\nEstableciendo GameInfo: {self.juego_seleccionado} con mensaje: {self.mensaje_inicial}\n")
             self.gpt_proxy.setGameInfo(self.juego_seleccionado, self.mensaje_inicial)
-            self.gpt_proxy.startChat()
+
+            if self.juego_seleccionado == "Ebo_autonomo_test":
+                self.autonomo = True
+                self.actualizar_interfaz()
+                print("ACTUALIZANDO INTERFAZ")
+
+                # *** MODIFICACIÓN CLAVE: INICIAR EN HILO SEPARADO ***
+                self.autonomo_thread = threading.Thread(target=self._iniciar_ebo_autonomo_thread)
+                self.autonomo_thread.daemon = True  # Esto permite que la aplicación se cierre sin esperar al hilo.
+                self.autonomo_thread.start()
+                # **************************************************
+
+            else:
+                # Actualizamos la interfaz principal con los nuevos valores
+                self.actualizar_interfaz()
+
+                # Aquí, podrías almacenar la variable juego_seleccionado para usarla en otros lugares
+                print(f"Juego seleccionado: {self.juego_seleccionado}")
+                print(f"Mensaje inicial: {self.mensaje_inicial}")
+
+                print(f"\nIniciando el juego: {self.juego_seleccionado} para el usuario: {self.mensaje_inicial}...\n")
+                self.gpt_proxy.setGameInfo(self.juego_seleccionado, self.mensaje_inicial)
+                self.gpt_proxy.startChat()
 
     def actualizar_interfaz(self):
         """Activa el modo GPT en la UI y reconecta señales de forma segura."""
@@ -253,10 +308,19 @@ class SpecificWorker(GenericWorker):
     def desactivar_gpt(self):
         """Sale del modo GPT y restaura la interfaz."""
         try:
+            # Poner 'autonomo' a False para salir del bucle en el hilo
+            self.autonomo = False
             self.gpt_proxy.continueChat("03827857295769204")
+
+            # Esperar un poco a que el hilo termine (opcional, pero recomendable)
+            if self.autonomo_thread and self.autonomo_thread.is_alive():
+                # Nota: Si el hilo está bloqueado en listenandtranscript, puede que no termine inmediatamente.
+                time.sleep(0.5)
+
         except Exception as e:
             traceback.print_exc()
             console.print(f"[bold red]Error[/bold red] al salir de GPT: {e}")
+
         self.regenerar_interfaz()
 
     def eventFilter(self, source, event):
@@ -334,8 +398,85 @@ class SpecificWorker(GenericWorker):
         test = ifaces.RoboCompLEDArray.Pixel()
         QTimer.singleShot(200, QApplication.instance().quit)
 
+    # PROGRAMACIÓN ESPECIAL PARA PROBAR EL EBO AUTÓNOMO ######################################
+    def ebo_autonomo_test(self):
+        self._asr_lock = getattr(self, "_asr_lock", threading.Lock())
 
+        while getattr(self, "autonomo", True):
+            with self._asr_lock:
+                # Esta línea es bloqueante y es la razón principal para usar un hilo.
+                text = self.eboasr_proxy.listenandtranscript()
+                print("EBO HA ESCUCHADO: ", text)
 
+            if not text:
+                # nada reconocido, espera breve y repite
+                time.sleep(0.1)
+                continue
+
+            self._asr_lock.acquire()
+            try:
+                self.gpt_proxy.continueChat(text)
+
+                ok = self.wait_for_speech_cycle_forgiving(
+                    wait_for_start_timeout=5,  # s: máximo tiempo para detectar que ha empezado a hablar
+                    wait_for_end_timeout=120.0,  # s: máximo tiempo para esperar a que termine de hablar
+                    poll_interval=0.05,  # s: cada cuánto comprobar isBusy() (sondeo)
+                    post_silence_grace=0.5,  # s: tiempo extra tras detectar fin para confirmar silencio
+                    fallback_wait_after_no_start=0.8
+                    # s: si no detectó inicio, espera esto y continúa (modo "forgiving")
+                )
+                if not ok:
+                    time.sleep(1.0)
+            finally:
+                # 5) Liberar ASR para volver a escuchar
+                self._asr_lock.release()
+
+            time.sleep(0.1)
+
+    def wait_for_speech_cycle_forgiving(self,
+                                        wait_for_start_timeout: float = 1.5,
+                                        wait_for_end_timeout: float = 30.0,
+                                        poll_interval: float = 0.05,
+                                        post_silence_grace: float = 0.25,
+                                        fallback_wait_after_no_start: float = 0.8) -> bool:
+
+        start_deadline = time.time() + wait_for_start_timeout
+        saw_start = False
+
+        # 1) Esperar inicio hasta timeout
+        while time.time() < start_deadline:
+            try:
+                if self.speech_proxy.isBusy():
+                    saw_start = True
+                    break
+            except Exception:
+                # toleramos fallos temporales de proxy
+                pass
+            time.sleep(poll_interval)
+
+        if not saw_start:
+            # No empezó a hablar: fallback corto y salir (modo forgiving)
+            time.sleep(fallback_wait_after_no_start)
+            return True
+
+        # 2) Si empezó a hablar, esperar a que termine
+        end_deadline = time.time() + wait_for_end_timeout
+        while time.time() < end_deadline:
+            try:
+                if not self.speech_proxy.isBusy():
+                    # pequeña confirmación post-silence
+                    time.sleep(post_silence_grace)
+                    if not self.speech_proxy.isBusy():
+                        return True
+                    # si volvió a activarse, seguir esperando
+            except Exception:
+                pass
+            time.sleep(poll_interval)
+
+        # timeout esperando a que termine de hablar
+        return False
+
+    # PROGRAMACIÓN ESPECIAL PARA PROBAR EL EBO AUTÓNOMO #######################################
 
     ######################
     # From the RoboCompDifferentialRobot you can call this methods:
@@ -351,6 +492,10 @@ class SpecificWorker(GenericWorker):
     ######################
     # From the RoboCompDifferentialRobot you can use this types:
     # RoboCompDifferentialRobot.TMechParams
+
+    ######################
+    # From the RoboCompEboASR you can call this methods:
+    # self.eboasr_proxy.listenandtranscript(...)
 
     ######################
     # From the RoboCompEboMoods you can call this methods:
@@ -395,5 +540,3 @@ class SpecificWorker(GenericWorker):
     # self.speech_proxy.say(...)
     # self.speech_proxy.setPitch(...)
     # self.speech_proxy.setTempo(...)
-
-

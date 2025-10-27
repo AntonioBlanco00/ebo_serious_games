@@ -917,6 +917,19 @@ p, li { white-space: pre-wrap; }
 DE INICIO</string>
    </property>
   </widget>
+  <widget class="QCheckBox" name="checkAutonomo">
+   <property name="geometry">
+    <rect>
+     <x>470</x>
+     <y>610</y>
+     <width>201</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Modo Autónomo (ASR)</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>

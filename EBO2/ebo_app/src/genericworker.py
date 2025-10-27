@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
-#    Copyright (C) 2024 by YOUR NAME HERE
+#    Copyright (C) 2025 by YOUR NAME HERE
 #
 #    This file is part of RoboComp
 #
@@ -48,6 +48,7 @@ class GenericWorker(QtWidgets.QWidget):
         super(GenericWorker, self).__init__()
 
         self.differentialrobot_proxy = mprx["DifferentialRobotProxy"]
+        self.eboasr_proxy = mprx["EboASRProxy"]
         self.ebomoods_proxy = mprx["EboMoodsProxy"]
         self.emotionalmotor_proxy = mprx["EmotionalMotorProxy"]
         self.gpt_proxy = mprx["GPTProxy"]

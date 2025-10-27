@@ -28,14 +28,17 @@ from PySide6 import QtCore, QtWidgets
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt, QTimer, QFile, Signal, Slot
+import threading
+import time
+import sys
 
 # Rutas comunes
 UI_SEL = "../../igs/seleccion_menu.ui"
 UI_CONV = "../../igs/conversacional_menu.ui"
-UI_ST   = "../../igs/storytelling_menu.ui"
+UI_ST = "../../igs/storytelling_menu.ui"
 UI_RESP = "../../igs/respuesta_gpt.ui"
-LOGO_1  = "../../igs/logos/logo_euro.png"
-LOGO_2  = "../../igs/logos/robolab.png"
+LOGO_1 = "../../igs/logos/logo_euro.png"
+LOGO_2 = "../../igs/logos/robolab.png"
 
 sys.path.append('/opt/robocomp/lib')
 console = Console(highlight=False)
@@ -49,6 +52,7 @@ console = Console(highlight=False)
 
 class SpecificWorker(GenericWorker):
     update_ui_signal = Signal()
+
     def __init__(self, proxy_map, startup_check=False):
         super(SpecificWorker, self).__init__(proxy_map)
         self.Period = 2000
@@ -68,6 +72,11 @@ class SpecificWorker(GenericWorker):
 
         self.reiniciar_variables()
 
+        # Variables para lógica autónoma
+        self.autonomo = False
+        self._autonomo_thread = None
+        self._asr_lock = threading.Lock()
+
         self.update_ui_signal.connect(self.handle_update_ui)
 
     def __del__(self):
@@ -75,12 +84,11 @@ class SpecificWorker(GenericWorker):
 
     def setParams(self, params):
         # try:
-        #	self.innermodel = InnerModel(params["InnerModelPath"])
+        #   self.innermodel = InnerModel(params["InnerModelPath"])
         # except:
-        #	traceback.print_exc()
-        #	print("Error reading config params")
+        #   traceback.print_exc()
+        #   print("Error reading config params")
         return True
-
 
     @QtCore.Slot()
     def compute(self):
@@ -98,6 +106,7 @@ class SpecificWorker(GenericWorker):
     ### CARGADOR DE UIs
     def load_ui(self, ui_path, ui_number, logo_paths=None, botones=None,
                 ayuda_button=None, back_button=None, combo_setter=None):
+
         loader = QtUiTools.QUiLoader()
         file = QFile(ui_path)
         file.open(QFile.ReadOnly)
@@ -145,6 +154,14 @@ class SpecificWorker(GenericWorker):
             ui.ayuda.setVisible(not ui.ayuda.isVisible())
 
     def back_clicked_ui(self, ui_number):
+        # MODIFICACIÓN CLAVE APLICADA AQUÍ
+        # Si estamos saliendo de la UI 4, primero detener el modo autónomo de forma segura.
+        if ui_number == 4:
+            if self.autonomo:
+                self.detener_autonomo()
+            # Notificar al GPT proxy el cierre del chat antes de lanzar la app principal
+            self.gpt_proxy.continueChat("03827857295769204")  # Asumiendo que es el código de parada.
+
         self.cerrar_ui(ui_number)
         self.gestorsg_proxy.LanzarApp()
 
@@ -176,6 +193,7 @@ class SpecificWorker(GenericWorker):
             ayuda_button="ayuda_button",
             back_button="back_button"
         )
+
     def conversation_clicked(self):
         print("Conversación Seleccionada")
         self.cerrar_ui(1)
@@ -304,13 +322,13 @@ class SpecificWorker(GenericWorker):
         self.aficiones = self.ui3.aficionE.toPlainText()
         self.edad = self.ui3.edadE.toPlainText()
         self.familiares = self.ui3.famiE.toPlainText()
-        
+
         folder_path = "../juegos_story"
         archivo_json = f"{juego}.json"
         self.archivo_path = os.path.join(folder_path, archivo_json)
 
         self.user_info = self.archivo_json_a_string(self.archivo_path)
-        
+
         print("------------ JSON ENVIADO ---------------------------------")
         print(self.user_info)
         print("------------ JSON ENVIADO ---------------------------------")
@@ -343,56 +361,215 @@ class SpecificWorker(GenericWorker):
         ui = self.load_ui(
             UI_RESP, ui_number=4,
             logo_paths={"label": LOGO_1, "label_2": LOGO_2},
-            botones={"enviar": self.enviar_clicked, "salir": self.salir_clicked},
+            botones={"enviar": self.enviar_clicked, "salir": self.salir_clicked,
+                     "checkAutonomo": self.toggle_autonomo_clicked},
             ayuda_button="ayuda_button",
             back_button="back_button"
         )
         ui.respuesta.installEventFilter(self)
+
+        checkbox = getattr(ui, "checkAutonomo", None)
+        if checkbox:
+            # Aseguramos que empieza apagado y sin modo autónomo
+            checkbox.setChecked(False)
+            self.autonomo = False
+
         return ui
 
     def enviar_clicked(self):
+        if self.autonomo:
+            print("El envío manual está bloqueado: Modo Autónomo activo.")
+            return
+
         mensaje = self.ui4.respuesta.toPlainText()
 
         if not mensaje:
             return
-        
+
         self.ui4.respuesta.clear()  # Limpiar el QTextEdit
         self.ui4.respuesta.clearFocus()  # Forzar que pierda el foco
         self.ui4.respuesta.setFocus()  # Volver a darle foco después
-    
+
         self.ui4.text_info.setText("Mensaje ENVIADO, EBO está pensando...")
         QApplication.processEvents()
 
         self.gpt_proxy.continueChat(mensaje)
         self.ui4.text_info.setText("Introduzca respuesta")
-            
+
     def salir_clicked(self):
         respuesta = QMessageBox.question(
-        self.ui4, "Confirmar salida", "¿Estás seguro de que quieres salir?",
-        QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-    )
+            self.ui4, "Confirmar salida", "¿Estás seguro de que quieres salir?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
 
         if respuesta == QMessageBox.Yes:
+            # MODIFICACIÓN CLAVE APLICADA AQUÍ
+            # Detener el modo autónomo de forma segura antes de cerrar todo
+            if self.autonomo:
+                self.detener_autonomo()
+
             self.reiniciar_variables()
             self.ui4.text_info.setText("Saliendo del programa...")
             QApplication.processEvents()
             self.cerrar_ui(4)
             self.gestorsg_proxy.LanzarApp()
+            # Este mensaje es el código de salida para GPT
             self.gpt_proxy.continueChat("03827857295769204")
         else:
             pass
 
+    def iniciar_autonomo(self):
+        """Inicia el hilo del modo autónomo si no está activo."""
+        if not self.autonomo:
+            self.autonomo = True
+            self._autonomo_thread = threading.Thread(
+                target=self.ebo_autonomo_test,
+                daemon=True  # Hace que el hilo se detenga cuando el programa principal lo haga
+            )
+            self._autonomo_thread.start()
+            print("Modo Autónomo INICIADO.")
+
+    def detener_autonomo(self):
+        """Pone a False la variable de control, llama a stopListening y espera a que el hilo termine (join)."""
+        if self.autonomo:
+            self.autonomo = False
+            print("Señal de DETENCIÓN enviada al modo autónomo.")
+
+            # PASO 1: Notificar al componente ASR que debe detener su escucha bloqueante
+            try:
+                # LLAMADA CLAVE: Usamos el método que implementaste en el proxy EboASR
+                self.eboasr_proxy.stopListening()
+                print("Llamada a eboasr_proxy.stopListening() enviada.")
+            except Exception as e:
+                print(f"Error al llamar a stopListening: {e}")
+
+            # PASO 2: Esperar a que el hilo termine (Join)
+            if self._autonomo_thread and self._autonomo_thread.is_alive():
+                print("Esperando a que el hilo autónomo finalice...")
+                # Usar un timeout (e.g., 3.0 segundos) para no bloquear indefinidamente.
+                self._autonomo_thread.join(timeout=3.0)
+
+                if self._autonomo_thread and self._autonomo_thread.is_alive():
+                    # Esto indica que el hilo no terminó a tiempo, pero el proceso principal continúa.
+                    print("Advertencia: El hilo autónomo no se detuvo a tiempo.")
+                else:
+                    print("Hilo autónomo DETENIDO correctamente.")
+
+            self._autonomo_thread = None  # Limpiar la referencia
+
+    def ebo_autonomo_test(self):
+        while self.autonomo:
+            # BLOQUE 1: Escucha (Bloqueante)
+            with self._asr_lock:
+                # Si stopListening se llama desde otro hilo, esta función devolverá "" y saldrá del bucle
+                text = self.eboasr_proxy.listenandtranscript()
+                print("EBO HA ESCUCHADO: ", text)
+
+            # Comprobar de nuevo el estado por si se desactivó durante la escucha
+            if not self.autonomo:
+                break
+
+            if not text:
+                # nada reconocido o interrupción por stopListening, espera breve y repite
+                time.sleep(0.1)
+                continue
+
+            # BLOQUE 2: Respuesta de GPT y Habla
+            self._asr_lock.acquire()
+            try:
+                self.gpt_proxy.continueChat(text)
+
+                ok = self.wait_for_speech_cycle_forgiving(
+                    wait_for_start_timeout=5,
+                    wait_for_end_timeout=120.0,
+                    poll_interval=0.05,
+                    post_silence_grace=0.5,
+                    fallback_wait_after_no_start=0.8
+                )
+                if not ok:
+                    time.sleep(1.0)
+            finally:
+                # Liberar ASR para volver a escuchar
+                self._asr_lock.release()
+
+            time.sleep(0.1)
+
+        print("Hilo del modo autónomo DETENIDO.")
+
+    def wait_for_speech_cycle_forgiving(self,
+                                        wait_for_start_timeout: float = 1.5,
+                                        wait_for_end_timeout: float = 30.0,
+                                        poll_interval: float = 0.05,
+                                        post_silence_grace: float = 0.25,
+                                        fallback_wait_after_no_start: float = 0.8) -> bool:
+
+        start_deadline = time.time() + wait_for_start_timeout
+        saw_start = False
+
+        # 1) Esperar inicio hasta timeout
+        while time.time() < start_deadline:
+            try:
+                if self.speech_proxy.isBusy():
+                    saw_start = True
+                    break
+            except Exception:
+                # toleramos fallos temporales de proxy
+                pass
+            time.sleep(poll_interval)
+
+        if not saw_start:
+            # No empezó a hablar: fallback corto y salir (modo forgiving)
+            time.sleep(fallback_wait_after_no_start)
+            return True
+
+        # 2) Si empezó a hablar, esperar a que termine
+        end_deadline = time.time() + wait_for_end_timeout
+        while time.time() < end_deadline:
+            try:
+                if not self.speech_proxy.isBusy():
+                    # pequeña confirmación post-silence
+                    time.sleep(post_silence_grace)
+                    if not self.speech_proxy.isBusy():
+                        return True
+                    # si volvió a activarse, seguir esperando
+            except Exception:
+                pass
+            time.sleep(poll_interval)
+
+        # timeout esperando a que termine de hablar
+        return False
+
+    @Slot()
+    def toggle_autonomo_clicked(self, checked):
+        enviar_btn = getattr(self.ui4, "enviar", None)
+
+        if checked:
+            # Modo Autónomo Activado (ON)
+            self.iniciar_autonomo()
+
+            if enviar_btn:
+                enviar_btn.setEnabled(False)
+
+            self.ui4.text_info.setText("Modo Autónomo ACTIVADO. EBO está a la escucha...")
+
+        else:
+            # Modo Autónomo Desactivado (OFF)
+            self.detener_autonomo()
+            if enviar_btn:
+                enviar_btn.setEnabled(True)
+            self.ui4.text_info.setText("Introduzca respuesta")
+
     ################ ############################################### ################
-    
+
     def eventFilter(self, obj, event):
         """ Captura eventos de la UI """
-        
+
         # Manejar eventos de cierre de ventana
         ui_number = self.ui_numbers.get(obj, None)
-        
+
         if ui_number is not None and event.type() == QtCore.QEvent.Close:
             target_ui = self.ui if ui_number == 1 else getattr(self, f'ui{ui_number}', None)
-            
+
             if obj == target_ui:
                 respuesta = QMessageBox.question(
                     target_ui, "Cerrar", "¿Estás seguro de que quieres salir del juego?",
@@ -400,6 +577,12 @@ class SpecificWorker(GenericWorker):
                 )
                 if respuesta == QMessageBox.Yes:
                     print(f"Ventana {ui_number} cerrada por el usuario.")
+                    # Si la ventana 4 se cierra con la X, detener el hilo y notificar a GPT.
+                    if ui_number == 4:
+                        if self.autonomo:
+                            self.detener_autonomo()
+                        self.gpt_proxy.continueChat("03827857295769204")
+
                     self.reiniciar_variables()
                     self.gestorsg_proxy.LanzarApp()
                     return False  # Permitir el cierre
@@ -416,18 +599,16 @@ class SpecificWorker(GenericWorker):
 
         return super().eventFilter(obj, event)  # Propagar otros eventos normalmente
 
-    
     def cerrar_ui(self, numero):
         ui_nombre = "ui" if numero == 1 else f"ui{numero}"
         ui_obj = getattr(self, ui_nombre, None)
-        
+
         if ui_obj:
             ui_obj.removeEventFilter(self)  # Desactiva el event filter
             ui_obj.close()  # Cierra la ventana
             ui_obj.installEventFilter(self)  # Reactiva el event filter
         else:
             print(f"Error: {ui_nombre} no existe en la instancia.")
-
 
     ####################################################################################################################################
 
@@ -448,8 +629,6 @@ class SpecificWorker(GenericWorker):
 
     def startup_check(self):
         QTimer.singleShot(200, QApplication.instance().quit)
-
-
 
     # =============== Methods for Component Implements ==================
     # ===================================================================
@@ -477,6 +656,10 @@ class SpecificWorker(GenericWorker):
     # ===================================================================
     # ===================================================================
 
+    ######################
+    # From the RoboCompEboASR you can call this methods:
+    # self.eboasr_proxy.listenandtranscript(...)
+    # self.eboasr_proxy.stopListening(...)
 
     ######################
     # From the RoboCompGPT you can call this methods:
@@ -488,4 +671,7 @@ class SpecificWorker(GenericWorker):
     # From the RoboCompGestorSG you can call this methods:
     # self.gestorsg_proxy.LanzarApp(...)
 
-
+    ######################
+    # From the RoboCompSpeech you can call this methods:
+    # self.speech_proxy.isBusy(...)
+    # self.speech_proxy.say(...)

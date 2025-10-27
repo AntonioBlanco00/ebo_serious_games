@@ -1,4 +1,4 @@
-# Install script for directory: /home/robolab/robocomp_ws/src/robocomp/components/ebo_app
+# Install script for directory: /home/robolab/Antonio/ebo_serious_games/EBO2/ebo_app
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -44,7 +44,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/robolab/robocomp_ws/src/robocomp/components/ebo_app/src/cmake_install.cmake")
+  include("/home/robolab/Antonio/ebo_serious_games/EBO2/ebo_app/src/cmake_install.cmake")
 
 endif()
 
@@ -56,5 +56,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/robolab/robocomp_ws/src/robocomp/components/ebo_app/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/robolab/Antonio/ebo_serious_games/EBO2/ebo_app/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

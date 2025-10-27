@@ -3,27 +3,22 @@
 ################################################################################
 ## Form generated from reading UI file 'mainUI.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.0
+## Created by: Qt User Interface Compiler version 5.15.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
-    QMetaObject, QObject, QPoint, QRect,
-    QSize, QTime, QUrl, Qt)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
-    QFont, QFontDatabase, QGradient, QIcon,
-    QImage, QKeySequence, QLinearGradient, QPainter,
-    QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QFrame, QLabel, QPlainTextEdit,
-    QPushButton, QSizePolicy, QTextEdit, QWidget)
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+
 
 class Ui_guiDlg(object):
     def setupUi(self, guiDlg):
         if not guiDlg.objectName():
             guiDlg.setObjectName(u"guiDlg")
         guiDlg.resize(942, 624)
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(guiDlg.sizePolicy().hasHeightForWidth())
@@ -67,7 +62,7 @@ class Ui_guiDlg(object):
         self.miedo.setGeometry(QRect(270, 260, 90, 60))
         self.miedo.setStyleSheet(u"")
         icon = QIcon()
-        icon.addFile(u"img/miedo.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u"img/miedo.png", QSize(), QIcon.Normal, QIcon.Off)
         self.miedo.setIcon(icon)
         self.miedo.setIconSize(QSize(88, 58))
         self.sorpresa = QPushButton(guiDlg)
@@ -75,7 +70,7 @@ class Ui_guiDlg(object):
         self.sorpresa.setGeometry(QRect(270, 340, 90, 60))
         self.sorpresa.setStyleSheet(u"")
         icon1 = QIcon()
-        icon1.addFile(u"img/sorpresa.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon1.addFile(u"img/sorpresa.png", QSize(), QIcon.Normal, QIcon.Off)
         self.sorpresa.setIcon(icon1)
         self.sorpresa.setIconSize(QSize(88, 58))
         self.triste = QPushButton(guiDlg)
@@ -83,7 +78,7 @@ class Ui_guiDlg(object):
         self.triste.setGeometry(QRect(160, 340, 90, 60))
         self.triste.setStyleSheet(u"")
         icon2 = QIcon()
-        icon2.addFile(u"img/tristeza.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon2.addFile(u"img/tristeza.png", QSize(), QIcon.Normal, QIcon.Off)
         self.triste.setIcon(icon2)
         self.triste.setIconSize(QSize(88, 58))
         self.textEdit_2 = QTextEdit(guiDlg)
@@ -99,7 +94,7 @@ class Ui_guiDlg(object):
         self.feliz.setGeometry(QRect(50, 260, 90, 60))
         self.feliz.setStyleSheet(u"")
         icon3 = QIcon()
-        icon3.addFile(u"img/alegria.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon3.addFile(u"img/alegria.png", QSize(), QIcon.Normal, QIcon.Off)
         self.feliz.setIcon(icon3)
         self.feliz.setIconSize(QSize(88, 58))
         self.asco = QPushButton(guiDlg)
@@ -107,7 +102,7 @@ class Ui_guiDlg(object):
         self.asco.setGeometry(QRect(160, 260, 90, 60))
         self.asco.setStyleSheet(u"")
         icon4 = QIcon()
-        icon4.addFile(u"img/asco.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon4.addFile(u"img/asco.png", QSize(), QIcon.Normal, QIcon.Off)
         self.asco.setIcon(icon4)
         self.asco.setIconSize(QSize(88, 58))
         self.enfado = QPushButton(guiDlg)
@@ -115,7 +110,7 @@ class Ui_guiDlg(object):
         self.enfado.setGeometry(QRect(50, 340, 90, 60))
         self.enfado.setStyleSheet(u"")
         icon5 = QIcon()
-        icon5.addFile(u"img/ira.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon5.addFile(u"img/ira.png", QSize(), QIcon.Normal, QIcon.Off)
         self.enfado.setIcon(icon5)
         self.enfado.setIconSize(QSize(88, 58))
         self.pushButton = QPushButton(guiDlg)
@@ -149,12 +144,12 @@ class Ui_guiDlg(object):
         self.label_2 = QLabel(guiDlg)
         self.label_2.setObjectName(u"label_2")
         self.label_2.setGeometry(QRect(680, 460, 221, 141))
-        self.label_2.setPixmap(QPixmap(u"img/robolab.png"))
+        self.label_2.setPixmap(QPixmap(u"../img/robolab.png"))
         self.label_2.setScaledContents(True)
         self.label_3 = QLabel(guiDlg)
         self.label_3.setObjectName(u"label_3")
         self.label_3.setGeometry(QRect(20, 470, 631, 141))
-        self.label_3.setPixmap(QPixmap(u"img/euroage.png"))
+        self.label_3.setPixmap(QPixmap(u"../img/euroage.png"))
         self.label_3.setScaledContents(True)
 
         self.retranslateUi(guiDlg)

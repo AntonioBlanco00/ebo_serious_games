@@ -1,13 +1,15 @@
 import "GPT.idsl";
 import "StoryTelling.idsl";
 import "GestorSG.idsl";
+import "Speech.idsl";
+import "EboASR.idsl";
 
 Component storytelling
 {
     Communications
     {
         implements StoryTelling;
-        requires GPT, GestorSG;
+        requires GPT, GestorSG, Speech, EboASR;
     };
     language python;
     gui Qt(QWidget);

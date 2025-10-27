@@ -7,6 +7,8 @@ console = Console()
 
 Ice.loadSlice("-I ./src/ --all ./src/DifferentialRobot.ice")
 import RoboCompDifferentialRobot
+Ice.loadSlice("-I ./src/ --all ./src/EboASR.ice")
+import RoboCompEboASR
 Ice.loadSlice("-I ./src/ --all ./src/EboMoods.ice")
 import RoboCompEboMoods
 Ice.loadSlice("-I ./src/ --all ./src/EmotionalMotor.ice")
@@ -61,6 +63,8 @@ class Requires:
         self.mprx={}
 
         self.DifferentialRobot = self.create_proxy("DifferentialRobotProxy", RoboCompDifferentialRobot.DifferentialRobotPrx)
+
+        self.EboASR = self.create_proxy("EboASRProxy", RoboCompEboASR.EboASRPrx)
 
         self.EboMoods = self.create_proxy("EboMoodsProxy", RoboCompEboMoods.EboMoodsPrx)
 

@@ -6,3 +6,4 @@ StoryTelling;profiles/StoryTelling.prompt.txt
 EBO_simpatico;profiles/EBO_simpatico.prompt.txt
 EBO_neutro;profiles/EBO_neutro.prompt.txt
 EBO_pasional;profiles/EBO_pasional.prompt.txt
+Ebo_autonomo_test;profiles/Ebo_autonomo_test.txt
