@@ -419,15 +419,48 @@ class SpecificWorker(GenericWorker):
             pass
 
     def iniciar_autonomo(self):
-        """Inicia el hilo del modo autónomo si no está activo."""
+        """ Inicia el proceso del modo autónomo. """
+        if self.autonomo:
+            print("iniciar_autonomo: Ya está activo o iniciándose. No hacer nada.")
+            return
+            
+        self.autonomo = True 
+        print("iniciar_autonomo: Flag 'autonomo' puesto a True.")
+
+        waiter_thread = threading.Thread(
+            target=self.esperar_y_lanzar_autonomo,
+            daemon=True
+        )
+        waiter_thread.start()
+        print("iniciar_autonomo: Hilo observador lanzado. La GUI sigue respondiendo.")
+        
+    def esperar_y_lanzar_autonomo(self):
+        print("Hilo observador: Esperando a que EBO termine de hablar...")
+        
+        try:
+            while self.speech_proxy.isBusy():
+                if not self.autonomo:
+                    print("Hilo observador: Arranque cancelado por el usuario (mientras esperaba).")
+                    return # Salir del hilo observador
+                
+                time.sleep(0.1)
+                
+        except Exception as e:
+            print(f"Hilo observador: Error comprobando isBusy(): {e}. Abortando.")
+            self.autonomo = False 
+            return
+
         if not self.autonomo:
-            self.autonomo = True
-            self._autonomo_thread = threading.Thread(
-                target=self.ebo_autonomo_test,
-                daemon=True  # Hace que el hilo se detenga cuando el programa principal lo haga
-            )
-            self._autonomo_thread.start()
-            print("Modo Autónomo INICIADO.")
+            print("Hilo observador: Arranque cancelado justo al terminar de hablar.")
+            return
+            
+        print("Hilo observador: Habla terminada. Lanzando hilo autónomo principal...")
+        self._autonomo_thread = threading.Thread(
+            target=self.ebo_autonomo_test,
+            daemon=True 
+        )
+        self._autonomo_thread.start()
+        print("Modo Autónomo INICIADO.")
 
     def detener_autonomo(self):
         """Pone a False la variable de control, llama a stopListening y espera a que el hilo termine (join)."""
@@ -459,22 +492,17 @@ class SpecificWorker(GenericWorker):
 
     def ebo_autonomo_test(self):
         while self.autonomo:
-            # BLOQUE 1: Escucha (Bloqueante)
             with self._asr_lock:
-                # Si stopListening se llama desde otro hilo, esta función devolverá "" y saldrá del bucle
                 text = self.eboasr_proxy.listenandtranscript()
                 print("EBO HA ESCUCHADO: ", text)
 
-            # Comprobar de nuevo el estado por si se desactivó durante la escucha
             if not self.autonomo:
                 break
 
             if not text:
-                # nada reconocido o interrupción por stopListening, espera breve y repite
                 time.sleep(0.1)
                 continue
 
-            # BLOQUE 2: Respuesta de GPT y Habla
             self._asr_lock.acquire()
             try:
                 self.gpt_proxy.continueChat(text)
@@ -489,7 +517,6 @@ class SpecificWorker(GenericWorker):
                 if not ok:
                     time.sleep(1.0)
             finally:
-                # Liberar ASR para volver a escuchar
                 self._asr_lock.release()
 
             time.sleep(0.1)
