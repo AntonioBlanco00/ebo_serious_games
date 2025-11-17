@@ -209,7 +209,7 @@ class SpecificWorker(GenericWorker):
         def set_personalidades(ui):
             ui.comboBox.clear()
             ui.comboBox.addItems([
-                "Seleccionar Personalidad...", "EBO_simpatico", "EBO_neutro", "EBO_pasional"
+                "Seleccionar Personalidad...", "EBO_simpatico", "EBO_neutro", "EBO_pasional", "EBO_colegios"
             ])
 
         return self.load_ui(
@@ -227,6 +227,13 @@ class SpecificWorker(GenericWorker):
         if not self.personalidad or self.personalidad == "Seleccionar Personalidad...":
             print("Por favor selecciona una personalidad.")
             return
+
+        if self.personalidad == "EBO_colegios":
+            self.user_info = f"Estas con la clase de {self.nombre_jugador}. Presentate y saluda a todos y todas, y diles que estas aqui para responder todas sus preguntas"
+
+        print("-------------------------------------------------------------------")
+        print(self.user_info)
+        print("-------------------------------------------------------------------")
 
         self.ui2.nombreE.clear()
         self.ui2.aficionE.clear()
@@ -257,9 +264,6 @@ class SpecificWorker(GenericWorker):
                           f"Familiares: {self.familiares}. "
                           f"Presentate, saludale e inicia la conversación adaptandote a sus aficiones. Más adelante puedes preguntarle por sus aficiones"
                           )
-        print("-------------------------------------------------------------------")
-        print(self.user_info)
-        print("-------------------------------------------------------------------")
 
     #### UI 3 #### ################ ############################################### ################
     def storytelling_ui(self):

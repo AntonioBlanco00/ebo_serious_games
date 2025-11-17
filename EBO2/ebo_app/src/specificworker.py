@@ -21,7 +21,7 @@
 
 from PySide6 import QtUiTools
 from PySide6.QtCore import QTimer, Qt, QEvent
-from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton
+from PySide6.QtWidgets import QApplication, QMessageBox
 from rich.console import Console
 from genericworker import *
 import interfaces as ifaces
@@ -41,57 +41,6 @@ console = Console(highlight=False)
 # import librobocomp_osgviewer
 # import librobocomp_innermodel
 
-class JuegoSelector(QDialog):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Seleccionar Juego y Mensaje")
-        self.setFixedSize(600, 325)  # Fija el tamaño de la ventana
-
-        # Layout principal
-        layout = QVBoxLayout()
-
-        # Etiqueta para el juego
-        self.juego_label = QLabel("Selecciona un juego:")
-        layout.addWidget(self.juego_label)
-
-        # ComboBox para seleccionar el juego
-        self.juego_combo = QComboBox()
-        self.juego_combo.addItem("Conversation_Game")
-        self.juego_combo.addItem("Conversation_Test")
-        self.juego_combo.addItem("De_charla_con_EBO")
-        self.juego_combo.addItem("Colegios")
-        self.juego_combo.addItem("Ebo_autonomo_test")
-        layout.addWidget(self.juego_combo)
-
-        # Etiqueta para el mensaje
-        self.mensaje_label = QLabel("Introduce un mensaje inicial:")
-        layout.addWidget(self.mensaje_label)
-
-        # Campo de texto para el mensaje
-        self.mensaje_input = QLineEdit()
-        layout.addWidget(self.mensaje_input)
-
-        # Botones de Aceptar y Atrás
-        self.aceptar_button = QPushButton("Aceptar")
-        self.aceptar_button.clicked.connect(self.aceptar)
-        layout.addWidget(self.aceptar_button)
-
-        self.atras_button = QPushButton("Atrás")
-        self.atras_button.clicked.connect(self.reject)  # Cierra el widget
-        layout.addWidget(self.atras_button)
-
-        # Establecer el layout del widget
-        self.setLayout(layout)
-
-        self.autonomo = False
-
-    def aceptar(self):
-        # Al hacer clic en Aceptar, almacenamos los valores seleccionados
-        self.juego_seleccionado = self.juego_combo.currentText()
-        self.mensaje_inicial = self.mensaje_input.text()
-        self.accept()  # Cierra el widget
-
 
 class SpecificWorker(GenericWorker):
     def __init__(self, proxy_map, startup_check=False):
@@ -104,10 +53,6 @@ class SpecificWorker(GenericWorker):
             self.timer.timeout.connect(self.compute)
             self.timer.start(self.Period)
         self.ui.texto_gpt.setVisible(False)
-
-        # Inicializar el lock de ASR de forma segura
-        self._asr_lock = getattr(self, "_asr_lock", threading.Lock())
-        self.autonomo_thread = None  # Inicializar el hilo
 
         # Botón para hablar
         self.ui.pushButton.clicked.connect(self.enviar_tts)
@@ -179,158 +124,20 @@ class SpecificWorker(GenericWorker):
     def apagar_leds(self):
         self.set_all_LEDS_colors(red=0, green=0, blue=0, white=0)
 
-    def _iniciar_ebo_autonomo_thread(self):
-        """MÉTODO AÑADIDO: Ejecuta la lógica de inicio y el bucle en un hilo separado."""
-
-        # 1. Asegurarse de que el lock existe (aunque ya se hizo en __init__)
-        self._asr_lock = getattr(self, "_asr_lock", threading.Lock())
-
-        # 2. ADQUIRIR el lock para evitar que el ASR escuche la respuesta de startChat
-        self._asr_lock.acquire()
-        try:
-            self.gpt_proxy.startChat()
-            time.sleep(2)  # Pausa inicial para que la respuesta de TTS comience
-
-            # 3. Esperar a que termine de hablar, mientras el lock está activo
-            ok = self.wait_for_speech_cycle_forgiving(
-                wait_for_start_timeout=5,
-                wait_for_end_timeout=120.0,
-                poll_interval=0.05,
-                post_silence_grace=0.5,
-                fallback_wait_after_no_start=0.8
-            )
-            if not ok:
-                time.sleep(1.0)
-        finally:
-            # 4. LIBERAR el lock después de que el robot haya terminado de hablar.
-            self._asr_lock.release()
-
-        # 5. Iniciar el bucle autónomo (que se queda bloqueado en este hilo secundario)
-        self.ebo_autonomo_test()
-
     def activar_gpt(self):
-        print("ACTIVAR CHATGPT PULSADO")
+        print("ACTIVAR CHATGPT PULSADO (Función deshabilitada)")
 
-        # Crear y mostrar el widget para seleccionar juego y mensaje
-        self.juego_selector = JuegoSelector()
-
-        # Mostrar el widget como un diálogo modal
-        if self.juego_selector.exec() == QDialog.Accepted:
-            # Al aceptar, obtenemos los valores seleccionados
-            self.juego_seleccionado = self.juego_selector.juego_seleccionado
-            print("JUEGO SELECCIONADO HA SIDO::::: ", self.juego_seleccionado)
-            self.mensaje_inicial = self.juego_selector.mensaje_inicial
-
-            print(f"\nEstableciendo GameInfo: {self.juego_seleccionado} con mensaje: {self.mensaje_inicial}\n")
-            self.gpt_proxy.setGameInfo(self.juego_seleccionado, self.mensaje_inicial)
-
-            if self.juego_seleccionado == "Ebo_autonomo_test":
-                self.autonomo = True
-                self.actualizar_interfaz()
-                print("ACTUALIZANDO INTERFAZ")
-
-                # *** MODIFICACIÓN CLAVE: INICIAR EN HILO SEPARADO ***
-                self.autonomo_thread = threading.Thread(target=self._iniciar_ebo_autonomo_thread)
-                self.autonomo_thread.daemon = True  # Esto permite que la aplicación se cierre sin esperar al hilo.
-                self.autonomo_thread.start()
-                # **************************************************
-
-            else:
-                # Actualizamos la interfaz principal con los nuevos valores
-                self.actualizar_interfaz()
-
-                # Aquí, podrías almacenar la variable juego_seleccionado para usarla en otros lugares
-                print(f"Juego seleccionado: {self.juego_seleccionado}")
-                print(f"Mensaje inicial: {self.mensaje_inicial}")
-
-                print(f"\nIniciando el juego: {self.juego_seleccionado} para el usuario: {self.mensaje_inicial}...\n")
-                self.gpt_proxy.setGameInfo(self.juego_seleccionado, self.mensaje_inicial)
-                self.gpt_proxy.startChat()
-
-    def actualizar_interfaz(self):
-        """Activa el modo GPT en la UI y reconecta señales de forma segura."""
-        self.ui.GPT_mode.setText("Salir modo GPT")
-        self.ui.textEdit.clear()
-        self.ui.textEdit.insertPlainText("Escribe aquí lo que decir a EBO")
-        self.ui.texto_gpt.setVisible(True)
-
-        # pushButton: pasar de TTS → GPT
-        try:
-            self.ui.pushButton.clicked.disconnect()
-        except TypeError:
-            pass
-        self.ui.pushButton.clicked.connect(self.enviar_gpt)
-
-        # GPT_mode: pasar de activar → desactivar
-        try:
-            self.ui.GPT_mode.clicked.disconnect()
-        except TypeError:
-            pass
-        self.ui.GPT_mode.clicked.connect(self.desactivar_gpt)
-
-        # Limpia el input
-        self.ui.plainTextEdit.clear()
-
-    def regenerar_interfaz(self):
-        """Vuelve al modo TTS normal y reconecta señales de forma segura."""
-        self.ui.GPT_mode.setText("Entrar modo GPT")
-        self.ui.textEdit.clear()
-        self.ui.textEdit.setPlainText("Escribe aquí lo que quieres que diga EBO")
-        self.ui.texto_gpt.setVisible(False)
-
-        # pushButton: pasar de GPT → TTS
-        try:
-            self.ui.pushButton.clicked.disconnect()
-        except TypeError:
-            pass
-        self.ui.pushButton.clicked.connect(self.enviar_tts)
-
-        # GPT_mode: pasar de desactivar → activar
-        try:
-            self.ui.GPT_mode.clicked.disconnect()
-        except TypeError:
-            pass
-        self.ui.GPT_mode.clicked.connect(self.activar_gpt)
-
-        # Limpia el input
-        self.ui.plainTextEdit.clear()
-
-    def enviar_gpt(self):
-        """Envía el texto actual al chat GPT y limpia el campo."""
-        mensaje = self.ui.plainTextEdit.toPlainText()
-        self.ui.plainTextEdit.clear()
-        try:
-            self.gpt_proxy.continueChat(mensaje)
-        except Exception as e:
-            traceback.print_exc()
-            console.print(f"[bold red]Error[/bold red] al enviar mensaje a GPT: {e}")
-
-    def desactivar_gpt(self):
-        """Sale del modo GPT y restaura la interfaz."""
-        try:
-            # Poner 'autonomo' a False para salir del bucle en el hilo
-            self.autonomo = False
-            self.gpt_proxy.continueChat("03827857295769204")
-
-            # Esperar un poco a que el hilo termine (opcional, pero recomendable)
-            if self.autonomo_thread and self.autonomo_thread.is_alive():
-                # Nota: Si el hilo está bloqueado en listenandtranscript, puede que no termine inmediatamente.
-                time.sleep(0.5)
-
-        except Exception as e:
-            traceback.print_exc()
-            console.print(f"[bold red]Error[/bold red] al salir de GPT: {e}")
-
-        self.regenerar_interfaz()
+        QMessageBox.warning(
+            None,
+            "Modo no disponible",
+            "Para usar el modo GPT de EBO, por favor selecciona: Juego Conversacional. en la app de juegos"
+        )
 
     def eventFilter(self, source, event):
-        """Detecta Enter en el plainTextEdit y envía según modo activo."""
+        """Detecta Enter en el plainTextEdit y envía (solo TTS)."""
         if source is self.ui.plainTextEdit and event.type() == QEvent.KeyPress:
             if event.key() in (Qt.Key_Enter, Qt.Key_Return):
-                if self.ui.texto_gpt.isVisible():
-                    self.enviar_gpt()
-                else:
-                    self.enviar_tts()
+                self.enviar_tts()
                 return True  # Consumimos el evento
         return super().eventFilter(source, event)
 
