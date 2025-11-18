@@ -1563,9 +1563,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QPlainTextEdit" name="plainTextEdit_5">
    <property name="geometry">
     <rect>
-     <x>120</x>
-     <y>370</y>
-     <width>211</width>
+     <x>130</x>
+     <y>380</y>
+     <width>251</width>
      <height>51</height>
     </rect>
    </property>
@@ -1760,7 +1760,7 @@ p, li { white-space: pre-wrap; }
     <bool>true</bool>
    </property>
    <property name="plainText">
-    <string>Aficiones (separar por comas):</string>
+    <string>Aficiones o tema de conv:</string>
    </property>
   </widget>
   <widget class="QPlainTextEdit" name="plainTextEdit_3">

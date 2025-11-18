@@ -209,7 +209,7 @@ class SpecificWorker(GenericWorker):
         def set_personalidades(ui):
             ui.comboBox.clear()
             ui.comboBox.addItems([
-                "Seleccionar Personalidad...", "EBO_simpatico", "EBO_neutro", "EBO_pasional", "EBO_colegios"
+                "Seleccionar Personalidad...", "EBO_simpatico", "EBO_cacereño", "EBO_colegios", "modo_memoria", "modo_cultural", "modo_ludico", "modo_cotidiano"
             ])
 
         return self.load_ui(
@@ -228,8 +228,27 @@ class SpecificWorker(GenericWorker):
             print("Por favor selecciona una personalidad.")
             return
 
+        if self.personalidad == "EBO_cacereño":
+            respuesta = QMessageBox.question(
+                self.ui2,
+                "Confirmar Personalidad",
+                "¿Seguro que quieres comenzar el modo ebo_cacereño?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+
+            # Si el usuario dice que No, cancelamos el inicio del juego
+            if respuesta == QMessageBox.No:
+                return
+
         if self.personalidad == "EBO_colegios":
             self.user_info = f"Estas con la clase de {self.nombre_jugador}. Presentate y saluda a todos y todas, y diles que estas aqui para responder todas sus preguntas"
+
+        if self.personalidad.startswith("modo_"):
+            self.user_info = (f"Los datos del usuario con el que vas a hablar son los siguientes. "
+                              f"Nombre: {self.nombre_jugador}. "
+                              f"Tema de conversación del día: {self.aficiones}. "
+                              f"Saludale e inicia la conversación adaptandote al tema.")
 
         print("-------------------------------------------------------------------")
         print(self.user_info)
