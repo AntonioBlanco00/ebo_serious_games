@@ -59,10 +59,10 @@ class SpecificWorker(GenericWorker):
 
         self.client = OpenAI()
         self.history = []  # memoria de turnos (user/assistant)
-        self.model_fast = os.getenv("OPENAI_FAST_MODEL", "gpt-4o-mini")  # Fase A
-        self.model_full = os.getenv("OPENAI_FULL_MODEL", "gpt-4o-mini")  # Fase B
-        self.phase_a_params = {"temperature": 0.2, "max_tokens": 24}
-        self.phase_b_params = {"temperature": 0.6, "max_tokens": 800}
+        self.model_fast = os.getenv("OPENAI_FAST_MODEL", "gpt-5-mini")  # Fase A
+        self.model_full = os.getenv("OPENAI_FULL_MODEL", "gpt-5-mini")  # Fase B
+        self.phase_a_params = {"max_completion_tokens": 24}
+        self.phase_b_params = {"max_completion_tokens": 8000}
 
         self.conversacion_en_curso = False
         self.asisstantName  = ""
@@ -104,6 +104,7 @@ class SpecificWorker(GenericWorker):
 
             # Ahora habla
             self.speech_proxy.say(text.strip(), False)
+            print(text.strip())
 
     def _emit_sentences_progressively(self, buffer: str) -> str:
         parts = re.split(r'(?<=[\.\?\!])\s+', buffer)
@@ -112,111 +113,164 @@ class SpecificWorker(GenericWorker):
                 self._speak(sent.strip())
         return parts[-1] if parts else ""
 
+    def _extract_content_safe(self, chunk):
+        """
+        Intenta extraer texto de un chunk de todas las formas posibles
+        (Objeto, Diccionario o String directo).
+        """
+        try:
+            # 1. Si el chunk es nulo o no tiene choices
+            if not chunk or not hasattr(chunk, 'choices') or not chunk.choices:
+                return None
+
+            delta = chunk.choices[0].delta
+
+            # 2. Intentar sacar contenido como atributo (V1 standard)
+            content = getattr(delta, 'content', None)
+
+            # 3. Si falla, intentar como diccionario (V0 o compatibilidad)
+            if content is None and hasattr(delta, 'get'):
+                content = delta.get('content')
+
+            # 4. Si delta es string directo (casos raros)
+            if content is None and isinstance(delta, str):
+                content = delta
+
+            return content
+        except Exception as e:
+            return None
+
     def llm_stream_reply_single_message(self, user_text: str) -> str:
-        """
-        UNA sola llamada con streaming.
-        - Arranca con frase breve (≤12 palabras) y sigue sin repetirla.
-        - Emite oraciones completas en cuanto cierran.
-        - Al final, extrae la emoción una ÚNICA VEZ del remanente final,
-          no la pronuncia, la guarda en self._last_emotion y devuelve el texto limpio.
-        """
-        # Limpia estado de emoción al iniciar turno
         self._last_emotion = ""
 
-        runtime_system = (
-            "Empieza con una frase breve (≤12 palabras) que confirme o resuma la intención, "
-            "y continúa de inmediato con los detalles SIN repetir esa primera frase. "
-            "Finaliza SIEMPRE con, separado por un espacio, una sola palabra en minúsculas elegida de {asco, contento, triste, enfado, miedo, sorpresa}. "
-            "No añadas signos de puntuación tras la emoción ni más palabras."
+        format_instruction = (
+            "\n\n[INSTRUCCIÓN DEL SISTEMA: Responde de forma NATURAL y continuada. "
+            "No te vuelvas a presentar. "
+            "Finaliza SIEMPRE con una etiqueta: [asco], [contento], [triste], [enfado], [miedo] o [sorpresa].]"
         )
 
-        inputs = [
-            *self.history,
-            {"role": "system", "content": runtime_system},
-            {"role": "user", "content": user_text},
-        ]
+        # 1. Copiamos el historial existente
+        current_inputs = list(self.history)
 
-        # Acumulamos lo hablado (sin emoción) y el remanente
+        # 2. Añadimos el mensaje del usuario + la instrucción oculta
+        current_inputs.append({
+            "role": "user",
+            "content": user_text + format_instruction
+        })
+
+        # Configuración de parámetros
+        call_params = self.phase_b_params.copy()
+        if "temperature" in call_params: del call_params["temperature"]
+        if "max_tokens" in call_params:
+            call_params["max_completion_tokens"] = call_params.pop("max_tokens")
+
+        print(f"[LLM] Llamando a modelo: {self.model_full}")
+        print(f"[LLM] Tokens límite: {call_params.get('max_completion_tokens')}")
+
         spoken_parts: list[str] = []
         remnant = ""
         first_chunk_spoken = False
         words_threshold = 12
         t_first_token = None
 
+        stream_success = False
+
         try:
-            with self.client.responses.stream(
-                    model=self.model_full,
-                    input=inputs,
-                    temperature=self.phase_b_params.get("temperature", 0.6),
-                    max_output_tokens=self.phase_b_params.get("max_tokens", 800),
-            ) as stream:
-                for event in stream:
-                    if event.type == "response.output_text.delta":
-                        if t_first_token is None and self._turn_t0 is not None:
-                            t_first_token = time.perf_counter()
-                            print(f"[LLM] Tiempo hasta primer token: {t_first_token - self._turn_t0:.3f} s")
+            stream = self.client.chat.completions.create(
+                model=self.model_full,
+                messages=current_inputs,
+                stream=True,
+                **call_params
+            )
 
-                        delta = getattr(event, "delta", None)
-                        if not isinstance(delta, str):
-                            delta = getattr(getattr(event, "output_text", None), "delta", "")
-                        if not delta:
-                            continue
+            for chunk in stream:
+                content = self._extract_content_safe(chunk)
 
-                        remnant += delta
+                # Filtro de contenido
+                # Ignorar si es None o si es cadena vacía ""
+                if not content:
+                    print(".", end="", flush=True)
+                    continue
 
-                        # Disparo de arranque: primera oración cerrada o ≥ N palabras
-                        if not first_chunk_spoken:
-                            parts = re.split(r'(?<=[\.\?\!])\s+', remnant)
-                            if len(parts) > 1 and parts[0].strip():
-                                first = parts[0].strip()
-                                self._speak(first)
-                                spoken_parts.append(first)
-                                first_chunk_spoken = True
-                                remnant = " ".join(parts[1:])
-                                continue
-                            if len(remnant.strip().split()) >= words_threshold:
-                                early = remnant.strip()
-                                self._speak(early)
-                                spoken_parts.append(early)
-                                first_chunk_spoken = True
-                                remnant = ""
-                                continue
+                # Si pasa el filtro, es texto real
+                stream_success = True
 
-                        # Después del arranque: emitir oraciones completas
-                        if first_chunk_spoken:
-                            parts = re.split(r'(?<=[\.\?\!])\s+', remnant)
-                            for sent in parts[:-1]:
-                                s = sent.strip()
-                                if s:
-                                    self._speak(s)
-                                    spoken_parts.append(s)
-                            remnant = parts[-1] if parts else ""
+                if t_first_token is None and self._turn_t0 is not None:
+                    t_first_token = time.perf_counter()
+                    print(f"\n[LLM] Primer token texto real: {t_first_token - self._turn_t0:.3f} s")
 
-                    elif event.type == "response.error":
-                        print("LLM stream error:", getattr(event, "error", "unknown"))
-                    elif event.type == "response.completed":
-                        break
+                remnant += content
 
-            # === ÚNICO sitio donde extraemos la emoción ===
-            # No pronunciamos el remanente sin limpiar; primero quitamos la emoción.
+                # Habla progresiva
+                if not first_chunk_spoken:
+                    parts = re.split(r'(?<=[\.\?\!])\s+', remnant)
+                    if len(parts) > 1 and parts[0].strip():
+                        first = parts[0].strip()
+                        self._speak(first)
+                        spoken_parts.append(first)
+                        first_chunk_spoken = True
+                        remnant = " ".join(parts[1:])
+                        continue
+
+                    if len(remnant.strip().split()) >= words_threshold:
+                        early = remnant.strip()
+                        self._speak(early)
+                        spoken_parts.append(early)
+                        first_chunk_spoken = True
+                        remnant = ""
+                        continue
+
+                if first_chunk_spoken:
+                    parts = re.split(r'(?<=[\.\?\!])\s+', remnant)
+                    for sent in parts[:-1]:
+                        s = sent.strip()
+                        if s:
+                            self._speak(s)
+                            spoken_parts.append(s)
+                    remnant = parts[-1] if parts else ""
+
+            # Fin del stream
             tail_clean, emo = self._strip_trailing_emotion(remnant)
-            self._last_emotion = emo  # emoción disponible para quien la necesite
+            self._last_emotion = emo
 
             if tail_clean.strip():
                 self._speak(tail_clean.strip())
                 spoken_parts.append(tail_clean.strip())
 
         except Exception as e:
-            print("Stream error:", e)
+            print(f"\n[LLM Error Stream]: {e}")
 
-        # Texto final limpio (sin emoción) = lo ya hablado + cola limpia
-        assistant_text = " ".join(spoken_parts).strip()
+        # Fallback si falló el stream o se cortó
+        final_text = " ".join(spoken_parts).strip()
 
-        # Guarda al historial (sin emoción)
+        if not final_text:
+            print("\n[LLM] Respuesta vacía (posible timeout/length). Reintentando en modo NO-STREAM...")
+            try:
+                # Quitamos max_completion_tokens si es muy bajo, o lo subimos
+                response = self.client.chat.completions.create(
+                    model=self.model_full,
+                    messages=inputs,
+                    stream=False,
+                    **call_params
+                )
+                full = response.choices[0].message.content or ""
+                print(f"[LLM] Respuesta Fallback: {full[:50]}...")
+
+                clean_full, emo_full = self._strip_trailing_emotion(full)
+                self._last_emotion = emo_full
+                self._speak(clean_full)
+                final_text = clean_full
+            except Exception as e2:
+                err = "Lo siento, ha ocurrido un error técnico."
+                self._speak(err)
+                final_text = err
+
+            # --- IMPORTANTE: Guardamos SOLO el mensaje del usuario (sin la instrucción oculta) ---
+            # Así el historial se mantiene limpio y natural
         self.history.append({"role": "user", "content": user_text})
-        self.history.append({"role": "assistant", "content": assistant_text})
+        self.history.append({"role": "assistant", "content": final_text})
 
-        return assistant_text
+        return final_text
 
     def set_all_LEDS_colors(self, red=0, green=0, blue=0, white=0):
         pixel_array = {i: ifaces.RoboCompLEDArray.Pixel(red=red, green=green, blue=blue, white=white) for i in
@@ -453,12 +507,17 @@ class SpecificWorker(GenericWorker):
             print(f"Error al guardar el chat: {e}")
 
     def _strip_trailing_emotion(self, text: str):
-        pattern = r"(asco|contento|triste|enfado|miedo|sorpresa)[\.\!\?]?\s*$"
+
+        print(f"Texto recibido: {text}")
+        pattern = r"\[(asco|contento|triste|enfado|miedo|sorpresa)\][\.\!\?]?\s*$"
+
         m = re.search(pattern, text.strip(), re.IGNORECASE)
         if not m:
+            print(f"No encontré emoción en: '{text[-50:]}'")
             return text.strip(), ""
         emo = m.group(1).lower()
         clean = re.sub(pattern, "", text.strip(), flags=re.IGNORECASE).rstrip()
+
         return clean, emo
 
     def split_last_word(self, text):
@@ -541,17 +600,25 @@ class SpecificWorker(GenericWorker):
         name = self._assistant_name()
         system_prompt, cfg = self._load_system_prompt_and_params(name)
 
-        # Aplica config si existe
-        self.model_full = cfg.get("full_model", self.model_full)
-        self.phase_b_params["temperature"] = cfg.get("temp_b", self.phase_b_params["temperature"])
-        self.phase_b_params["max_tokens"] = cfg.get("max_tokens_b", self.phase_b_params["max_tokens"])
+        # Configuración del modelo (ignora temp_b si existe)
+        if "full_model" in cfg:
+            self.model_full = cfg["full_model"]
 
-        # Historial con system prompt del asistente
+        # Solo actualizamos tokens, IGNORAMOS explícitamente la temperatura
+        if "max_tokens_b" in cfg:
+            self.phase_b_params["max_completion_tokens"] = cfg["max_tokens_b"]
+            # Nos aseguramos de borrar la clave antigua si existía
+            if "max_tokens" in self.phase_b_params:
+                del self.phase_b_params["max_tokens"]
+
+        # Seguridad extra: asegurarnos de que NO hay temperature en los params
+        if "temperature" in self.phase_b_params:
+            del self.phase_b_params["temperature"]
+
         self.history = [{"role": "system", "content": system_prompt}]
 
-        initial_prompt = (self.userInfo or "").strip() or "Saluda al usuario y preséntate brevemente."
+        initial_prompt = (self.userInfo or "").strip() or "Saluda al usuario."
 
-        # Señales y cronómetro
         self.set_all_LEDS_colors(0, 0, 0, 0)
         self._turn_t0 = time.perf_counter()
         self._first_speak_ts = None
@@ -560,9 +627,7 @@ class SpecificWorker(GenericWorker):
 
         try:
             response_text = self.llm_stream_reply_single_message(initial_prompt)
-            emo = getattr(self, "_last_emotion", "") or ""
-            print(f"Assistant Response: {response_text}")
-            print(f"Emotion: {emo or 'N/A'}")
+            emo = getattr(self, "_last_emotion", "")
             if emo:
                 self.set_emotion(emo)
         finally:
